@@ -107,10 +107,15 @@ void drawWall(int side, int screenX, double distance, int hit) {
         case 4: material = GREEN; break;
         default: material = BLACK; break;
     }
+
+
+    double darkening = - (0.7 - 20 * pow(distance,-2));
+    if (darkening>=0) darkening=0;
+
     if (side == 0)
-        material = ColorBrightness(material, -0.1 * sqrt(distance) - 0.2);
+        material = ColorBrightness(material, darkening - 0.2);
     else
-        material = ColorBrightness(material, -0.1 * sqrt(distance));
+        material = ColorBrightness(material, darkening);
 
     int wallHeight = static_cast<int>(screenHeight / distance);
     // Clamp wall height to prevent excessive values
