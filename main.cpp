@@ -14,7 +14,7 @@ using namespace raycaster;
 constexpr short moveSpeed = 2; //squares per second
 constexpr short turnSpeed = 2; //radians per second
 
-void drawWall(int side, int screenX, double distance, int hit);
+void drawWall(int side, int screenX, double perpDistance, double distance, int hit);
 
 int main(){
     InitWindow(screenWidth, screenHeight, "Raycaster");
@@ -24,7 +24,7 @@ int main(){
     ToggleFullscreen();
 
     SetTargetFPS(120);
-    auto player = Player({3,3},{0,-1},{1.32,0});
+    auto player = Player({3.5,2.5},{0,-1},{1.32,0});
 
     double previousTime=GetTime();
     double currentTime {0};
@@ -65,6 +65,7 @@ int main(){
                 {
                     ray.sideDist.x += ray.pathDistanceForGridStep.x;
                     ray.mapPosition.x += ray.step.x;
+                    ray.position.x += ray.step.x;
                     side=0;
                 }
 
@@ -72,6 +73,7 @@ int main(){
                 {
                     ray.sideDist.y += ray.pathDistanceForGridStep.y;
                     ray.mapPosition.y += ray.step.y;
+                    ray.position.y += ray.step.y;
                     side=1;
                 }
 
@@ -82,8 +84,9 @@ int main(){
             if(side == 0) perpendicularDistance = (ray.sideDist.x - ray.pathDistanceForGridStep.x);
             else          perpendicularDistance = (ray.sideDist.y - ray.pathDistanceForGridStep.y);
 
+            double distance = hypot(ray.position.x-ray.origin.x, ray.position.y-ray.origin.y);
 
-            drawWall(side, screenX, perpendicularDistance, hit);
+            drawWall(side, screenX, perpendicularDistance, distance, hit);
 
         }
         std::string fps_counter = "FPS: "+std::to_string(GetFPS());
@@ -96,8 +99,8 @@ int main(){
     return 0;
 }
 
-void drawWall(int side, int screenX, double distance, int hit) {
-    if (distance <= 0) return;  // Avoid division by zero
+void drawWall(int side, int screenX, double perpDistance, double distance, int hit) {
+    if (perpDistance <= 0) return;  // Avoid division by zero
 
     Color material;
     switch (hit) {
@@ -105,11 +108,11 @@ void drawWall(int side, int screenX, double distance, int hit) {
         case 2: material = RED; break;
         case 3: material = BLUE; break;
         case 4: material = GREEN; break;
-        default: material = BLACK; break;
+        default: material = GRAY; break;
     }
 
 
-    double darkening = - (0.7 - 20 * pow(distance,-2));
+    double darkening = - (0.7 - 20 / (distance*distance));
     if (darkening>=0) darkening=0;
 
     if (side == 0)
@@ -117,7 +120,7 @@ void drawWall(int side, int screenX, double distance, int hit) {
     else
         material = ColorBrightness(material, darkening);
 
-    int wallHeight = static_cast<int>(screenHeight / distance);
+    int wallHeight = static_cast<int>(screenHeight / perpDistance);
     // Clamp wall height to prevent excessive values
     wallHeight = std::min(wallHeight, screenHeight * 2);
 

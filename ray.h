@@ -14,6 +14,7 @@ namespace raycaster
         Ray(const Vector2D& origin, const Vector2D& direction)
         {
             this->origin = origin;
+            this->position = origin;
             this->direction = direction;
             this->direction.normalise();
             mapPosition = origin.floor();
@@ -47,9 +48,10 @@ namespace raycaster
         Vector2D  origin;
         Vector2D  direction;
         Vector2D  pathDistanceForGridStep {0,0};
-        Vector2D sideDist;
+        Vector2D  sideDist;
         Vector2D  step {0,0};
         Vector2D  mapPosition;
+        Vector2D  position;
     };
 }
 #endif //RAY_H
