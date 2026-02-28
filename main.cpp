@@ -10,21 +10,32 @@
 
 using namespace raycaster;
  int screenWidth = 800;
- int screenHeight = 600;
+ int screenHeight = 450;
 constexpr short moveSpeed = 2; //squares per second
 constexpr short turnSpeed = 2; //radians per second
 
-void drawWall(int side, int screenX, double perpDistance, double distance, int hit);
+void drawWall(int side, int screenX, double perpDistance, int hit);
 
 int main(){
     InitWindow(screenWidth, screenHeight, "Raycaster");
     screenWidth = GetMonitorWidth(0);
     screenHeight = GetMonitorHeight(0);
-    SetWindowSize(screenWidth, screenHeight);
-    ToggleFullscreen();
+    // SetWindowSize(screenWidth, screenHeight);
+    // ToggleFullscreen();
+    screenWidth = 800;
+    screenHeight = 450;
+
+    Shader shader = LoadShader(nullptr, "raycaster_shader.glsl");
+    int resLocResolution = GetShaderLocation(shader, "resolution");
+    float resolution[2] = {static_cast<float>(screenWidth),static_cast<float>(screenHeight)};
+    SetShaderValue(shader, resLocResolution, resolution, SHADER_UNIFORM_VEC2);
 
     SetTargetFPS(120);
     auto player = Player({3.5,2.5},{0,-1},{1.32,0});
+
+    int resLocPlayerPosition = GetShaderLocation(shader, "playerPosition");
+    int resLocPlayerDirection = GetShaderLocation(shader, "playerDirection");
+    int resLocCameraPlane = GetShaderLocation(shader, "cameraPlane");
 
     double previousTime=GetTime();
     double currentTime {0};
@@ -38,57 +49,17 @@ int main(){
 
         player.handleMovement(moveSpeed, turnSpeed, seconds_elapsed);
 
+        float playerPos[2] = {(float)player.position.x, (float)player.position.y};
+        float playerDir[2] = {(float)player.direction.x, (float)player.direction.y};
+        float camPlane[2]  = {(float)player.cameraPlane.x, (float)player.cameraPlane.y};
+        SetShaderValue(shader, resLocPlayerPosition, playerPos, SHADER_UNIFORM_VEC2);
+        SetShaderValue(shader, resLocPlayerDirection, playerDir, SHADER_UNIFORM_VEC2);
+        SetShaderValue(shader, resLocCameraPlane, camPlane, SHADER_UNIFORM_VEC2);
+
         BeginDrawing();
-        DrawRectangle(0, 0, screenWidth, screenHeight/2, SKYBLUE);
-        for (float y = screenHeight/2; y < screenHeight; y++) {
-            float linearFactor = y/screenHeight;
-            float factor = 0.75*(std::log(linearFactor));
-
-            Color floorColor = ColorBrightness(DARKGREEN, factor);
-            DrawRectangle(0, y, screenWidth, 1, floorColor);
-        }
-
-
-        for (int screenX  {0}; screenX < screenWidth; screenX++)
-        {
-            const double  cameraX =
-                (-0.5 + (static_cast<float>(screenX) / static_cast<float>(screenWidth)));
-            Vector2D rayDirection = player.direction + player.cameraPlane * cameraX;
-            auto ray = raycaster::Ray(player.position, rayDirection);
-
-
-            int hit=0;
-            int side=0;
-            while (hit == 0 && Map::hasSquare(ray.mapPosition.x, ray.mapPosition.y))
-            {
-                if (ray.sideDist.x<ray.sideDist.y)
-                {
-                    ray.sideDist.x += ray.pathDistanceForGridStep.x;
-                    ray.mapPosition.x += ray.step.x;
-                    ray.position.x += ray.step.x;
-                    side=0;
-                }
-
-                else
-                {
-                    ray.sideDist.y += ray.pathDistanceForGridStep.y;
-                    ray.mapPosition.y += ray.step.y;
-                    ray.position.y += ray.step.y;
-                    side=1;
-                }
-
-                hit = Map::getSquare(ray.mapPosition.x, ray.mapPosition.y);
-
-            }
-            double perpendicularDistance = 0;
-            if(side == 0) perpendicularDistance = (ray.sideDist.x - ray.pathDistanceForGridStep.x);
-            else          perpendicularDistance = (ray.sideDist.y - ray.pathDistanceForGridStep.y);
-
-            double distance = hypot(ray.position.x-ray.origin.x, ray.position.y-ray.origin.y);
-
-            drawWall(side, screenX, perpendicularDistance, distance, hit);
-
-        }
+        BeginShaderMode(shader);
+        DrawRectangle(0, 0, screenWidth, screenHeight, WHITE);
+        EndShaderMode();
         std::string fps_counter = "FPS: "+std::to_string(GetFPS());
         DrawText(fps_counter.c_str(), 20, 10, 20, RAYWHITE);
         EndDrawing();
@@ -97,35 +68,4 @@ int main(){
 
     CloseWindow();
     return 0;
-}
-
-void drawWall(int side, int screenX, double perpDistance, double distance, int hit) {
-    if (perpDistance <= 0) return;  // Avoid division by zero
-
-    Color material;
-    switch (hit) {
-        case 1: material = WHITE; break;
-        case 2: material = RED; break;
-        case 3: material = BLUE; break;
-        case 4: material = GREEN; break;
-        default: material = GRAY; break;
-    }
-
-
-    double darkening = - (0.7 - 20 / (distance*distance));
-    if (darkening>=0) darkening=0;
-
-    if (side == 0)
-        material = ColorBrightness(material, darkening - 0.2);
-    else
-        material = ColorBrightness(material, darkening);
-
-    int wallHeight = static_cast<int>(screenHeight / perpDistance);
-    // Clamp wall height to prevent excessive values
-    wallHeight = std::min(wallHeight, screenHeight * 2);
-
-    const int drawStart = std::max(0, (screenHeight - wallHeight) / 2);
-    const int drawHeight = std::min(wallHeight, screenHeight - drawStart);
-
-    DrawRectangle(screenX, drawStart, 1, drawHeight, material);
 }
