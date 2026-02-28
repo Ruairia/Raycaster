@@ -2,7 +2,6 @@
 
 
 out vec4 fragColor;
-uniform float value;
 uniform vec2 resolution;
 uniform vec2 playerDirection;
 uniform vec2 playerPosition;
@@ -100,7 +99,13 @@ void main() {
             case 4: material = vec4(0.0,0.0,1.0,1.0); break;
             default: material = vec4(0.4,0.4,0.4,1.0); break;
         }
-        fragColor=material;
+
+        float darkening = (0.7 - 10 / (perpDistance*perpDistance));
+        if (darkening<0) darkening = 0;
+        if (ySide) darkening+=0.2;
+
+        fragColor.rgb = material.rgb* (1-darkening);
+        fragColor.a=1.0;
     }
 
 }
