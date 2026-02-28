@@ -13,8 +13,16 @@ namespace raycaster {
     Player::Player(const Vector2D& position, const Vector2D& direction, const Vector2D& cameraPlane)
     : position(position), direction(direction), cameraPlane(cameraPlane) {}
 
-void Player::move(const Vector2D& movement) {
+void Player::moveForward(const Vector2D& movement) {
         Vector2D next = position + movement;
+        if (Map::getSquare(next.x, next.y)==0)
+        {
+            position = next;
+        }
+    }
+
+    void Player::moveSideways(const Vector2D& movement) {
+        Vector2D next = position + movement*0.5;
         if (Map::getSquare(next.x, next.y)==0)
         {
             position = next;
@@ -29,20 +37,22 @@ void Player::rotate(const double angleInRadians) {
 {
     if (IsKeyDown(KEY_W))
     {
-        move(moveSpeed * direction * secondsElapsed);
+        moveForward(moveSpeed * direction * secondsElapsed);
     }
     if (IsKeyDown(KEY_S))
     {
-        move(-moveSpeed * direction * secondsElapsed);
+        moveForward(-moveSpeed * direction * secondsElapsed);
     }
     if (IsKeyDown(KEY_D))
     {
-        rotate(turnSpeed * secondsElapsed);
+        moveSideways(moveSpeed * cameraPlane * secondsElapsed);
     }
     if (IsKeyDown(KEY_A))
     {
-        rotate(-turnSpeed * secondsElapsed);
+        moveSideways(-moveSpeed * cameraPlane * secondsElapsed);
     }
+        float mouseDeltaX = GetMouseDelta().x;
+        rotate(turnSpeed * mouseDeltaX);
 }
 
 } // raycaster

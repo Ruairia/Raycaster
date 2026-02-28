@@ -16,7 +16,8 @@ public:
     Vector2D cameraPlane {};
 
     void handleMovement(float moveSpeed, float turnSpeed, double secondsElapsed);
-    void move(const Vector2D& movement);
+    void moveForward(const Vector2D& movement);
+    void moveSideways(const Vector2D& movement);
     Player(const Vector2D& position, const Vector2D& direction, const Vector2D& cameraPlane);
     void rotate(double angleInRadians);
 };

@@ -7,6 +7,8 @@ uniform vec2 playerDirection;
 uniform vec2 playerPosition;
 uniform vec2 cameraPlane;
 
+uniform sampler2D brickTexture;
+
 const int MAP_W = 10;
 const int MAP_H = 10;
 const int map[100] = int[](
@@ -86,25 +88,50 @@ void main() {
 
     bool thisPixelIsWall;
     int wallHeight = int(resolution.y/perpDistance);
+    int wallBottom = int(resolution.y/2 - wallHeight/2);
+    int wallTop = int(resolution.y/2 + wallHeight/2);
 
-    if (abs(gl_FragCoord.y-resolution.y/2)>wallHeight/2 || hit==0) thisPixelIsWall=false;
+    if (gl_FragCoord.y > wallTop || gl_FragCoord.y < wallBottom || hit==0) thisPixelIsWall=false;
     else thisPixelIsWall=true;
 
     vec4 material;
     if (thisPixelIsWall){
-        switch (hit){
-            case 1: material = vec4(1.0,1.0,1.0,1.0); break;
-            case 2: material = vec4(1.0,0.0,0.0,1.0); break;
-            case 3: material = vec4(0.0,1.0,0.0,1.0); break;
-            case 4: material = vec4(0.0,0.0,1.0,1.0); break;
-            default: material = vec4(0.4,0.4,0.4,1.0); break;
+        float wallX;
+        float textureX;
+        float textureY;
+
+        if (ySide) {
+            wallX = playerPosition.x + perpDistance * rayDirection.x;
         }
+        else{
+        wallX = playerPosition.y + perpDistance * rayDirection.y;
+        }
+        wallX = wallX - floor(wallX);
+
+        textureX = wallX;
+        if ((ySide && rayDirection.y < 0) || (!ySide && rayDirection.x > 0)) {
+            textureX = 1.0 - textureX; // Flip horizontally
+        }
+
+        textureY = (gl_FragCoord.y-wallBottom)/wallHeight;
+
+        vec4 textureColour = texture(brickTexture, vec2(textureX,textureY));
+
+//        switch (hit){
+//            case 1: material = vec4(textureX,textureY,1.0,1.0); break;
+//            case 2: material = vec4(textureY,textureX,0.0,1.0); break;
+//            case 3: material = vec4(0.0,textureX,0.0,1.0); break;
+//            case 4: material = vec4(0.0,textureY,1.0,1.0); break;
+//            default: material = vec4(0.4,0.4,0.4,1.0); break;
+//        }
+
+        if (hit==1) textureColour = vec4(1.0,1.0,1.0,1.0);
 
         float darkening = (0.7 - 10 / (perpDistance*perpDistance));
         if (darkening<0) darkening = 0;
         if (ySide) darkening+=0.2;
 
-        fragColor.rgb = material.rgb* (1-darkening);
+        fragColor.rgb = textureColour.rgb* (1-darkening);
         fragColor.a=1.0;
     }
 

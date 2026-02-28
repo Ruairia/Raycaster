@@ -11,10 +11,19 @@
 using namespace raycaster;
  int screenWidth = 800;
  int screenHeight = 450;
+static Texture2D brickTexture;
 constexpr short moveSpeed = 2; //squares per second
-constexpr short turnSpeed = 2; //radians per second
+constexpr float turnSpeed = 0.005; //radians per mouse delta
 
 void drawWall(int side, int screenX, double perpDistance, int hit);
+
+void loadTextures(Shader shader)
+{
+    brickTexture = LoadTexture("../Assets/Minecraft-Bricks.png");
+    int texLocBrick = GetShaderLocation(shader, "brickTexture");
+    SetShaderValueTexture(shader, texLocBrick, brickTexture);
+    SetTextureFilter(brickTexture, TEXTURE_FILTER_POINT);
+}
 
 int main(){
     InitWindow(screenWidth, screenHeight, "Raycaster");
@@ -28,7 +37,11 @@ int main(){
     float resolution[2] = {static_cast<float>(screenWidth),static_cast<float>(screenHeight)};
     SetShaderValue(shader, resLocResolution, resolution, SHADER_UNIFORM_VEC2);
 
-    SetTargetFPS(120);
+    loadTextures(shader);
+
+    SetTargetFPS(100);
+    DisableCursor();
+
     auto player = Player({3.5,2.5},{0,-1},{1.32,0});
 
     int resLocPlayerPosition = GetShaderLocation(shader, "playerPosition");
