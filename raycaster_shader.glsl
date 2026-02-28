@@ -60,7 +60,7 @@ void main() {
     }
     else {
         stepDir.y=1;
-        sideDist.y = (playerPosition.y + 1 - rayMapPosition.y) * pathDistanceForGridStep.y;
+        sideDist.y = (rayMapPosition.y + 1 - playerPosition.y) * pathDistanceForGridStep.y;
     }
 
     int hit = 0;
