@@ -20,10 +20,8 @@ int main(){
     InitWindow(screenWidth, screenHeight, "Raycaster");
     screenWidth = GetMonitorWidth(0);
     screenHeight = GetMonitorHeight(0);
-    // SetWindowSize(screenWidth, screenHeight);
-    // ToggleFullscreen();
-    screenWidth = 800;
-    screenHeight = 450;
+    SetWindowSize(screenWidth, screenHeight);
+    ToggleFullscreen();
 
     Shader shader = LoadShader(nullptr, "raycaster_shader.glsl");
     int resLocResolution = GetShaderLocation(shader, "resolution");

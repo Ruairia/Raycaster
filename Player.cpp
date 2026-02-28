@@ -15,7 +15,7 @@ namespace raycaster {
 
 void Player::move(const Vector2D& movement) {
         Vector2D next = position + movement;
-        // if (Map::getSquare(next.x, next.y)==0)
+        if (Map::getSquare(next.x, next.y)==0)
         {
             position = next;
         }
