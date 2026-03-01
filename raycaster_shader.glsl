@@ -45,6 +45,14 @@ const int map[576] = int[](
 2,2,2,2,1,2,2,2,2,2,2,1,2,2,2,5,5,5,5,5,5,5,5,5
 );
 
+const float FOG_MAX = 0.7;
+const float FOG_DISTANCE = 10.0;
+const float SIDE_DARKENING = 0.2;
+
+const int WALL_STONE        = 1;
+const int WALL_BRICK        = 2;
+const int WALL_DIRT         = 3;
+const int WALL_DARK_OAK_LOG = 4;
 
 int getMap(int x, int y) {
     if (x < 0 || x >= MAP_W || y < 0 || y >= MAP_H) return 1;
@@ -63,122 +71,120 @@ float getBayerValue(ivec2 pos) {
     return bayer4[idx];
 }
 
-
-
-void main() {
-     fragColor = vec4(0.4, 0.75, 1.0, 1.0);
-    float cameraX = (-0.5 + gl_FragCoord.x/resolution.x);
-    vec2 rayDirection = playerDirection + (cameraPlane*cameraX);
-    ivec2 rayMapPosition = ivec2(int(playerPosition.x),int(playerPosition.y));
+struct Ray {
+    vec2 direction;
+    ivec2 mapPos;
+    vec2 sideDist;
     vec2 pathDistanceForGridStep;
     ivec2 stepDir;
-    vec2 sideDist;
-    if (rayDirection.x==0) pathDistanceForGridStep.x=1e30;
-    else pathDistanceForGridStep.x = abs(1/rayDirection.x);
-    if (rayDirection.y==0) pathDistanceForGridStep.y=1e30;
-    else pathDistanceForGridStep.y = abs(1/rayDirection.y);
+};
 
-    if (rayDirection.x<0) {
-        stepDir.x = -1;
-        sideDist.x = (playerPosition.x - rayMapPosition.x) * pathDistanceForGridStep.x;
+void main() {
+    float cameraX = (-0.5 + gl_FragCoord.x/resolution.x);
+    Ray ray;
+    ray.direction = playerDirection + (cameraPlane*cameraX);
+    ray.mapPos = ivec2(int(playerPosition.x),int(playerPosition.y));
+
+    if (ray.direction.x==0) ray.pathDistanceForGridStep.x=1e30;
+    else ray.pathDistanceForGridStep.x = abs(1/ray.direction.x);
+    if (ray.direction.y==0) ray.pathDistanceForGridStep.y=1e30;
+    else ray.pathDistanceForGridStep.y = abs(1/ray.direction.y);
+
+    if (ray.direction.x<0) {
+        ray.stepDir.x = -1;
+        ray.sideDist.x = (playerPosition.x - ray.mapPos.x) * ray.pathDistanceForGridStep.x;
     }
     else {
-        stepDir.x=1;
-        sideDist.x = (rayMapPosition.x + 1 - playerPosition.x) * pathDistanceForGridStep.x;
+        ray.stepDir.x=1;
+        ray.sideDist.x = (ray.mapPos.x + 1 - playerPosition.x) * ray.pathDistanceForGridStep.x;
     }
-    if (rayDirection.y<0){
-        stepDir.y=-1;
-        sideDist.y = (playerPosition.y - rayMapPosition.y) * pathDistanceForGridStep.y;
+    if (ray.direction.y<0){
+        ray.stepDir.y=-1;
+        ray.sideDist.y = (playerPosition.y - ray.mapPos.y) * ray.pathDistanceForGridStep.y;
     }
     else {
-        stepDir.y=1;
-        sideDist.y = (rayMapPosition.y + 1 - playerPosition.y) * pathDistanceForGridStep.y;
+        ray.stepDir.y=1;
+        ray.sideDist.y = (ray.mapPos.y + 1 - playerPosition.y) * ray.pathDistanceForGridStep.y;
     }
 
     int hit = 0;
     bool ySide = false;
 
     for (int i = 0; i<64; i++){
-        if (sideDist.x<sideDist.y){
-            sideDist.x += pathDistanceForGridStep.x;
-            rayMapPosition.x += stepDir.x;
+        if (ray.sideDist.x<ray.sideDist.y){
+            ray.sideDist.x += ray.pathDistanceForGridStep.x;
+            ray.mapPos.x += ray.stepDir.x;
             ySide=false;
         }
         else{
-            sideDist.y += pathDistanceForGridStep.y;
-            rayMapPosition.y += stepDir.y;
+            ray.sideDist.y += ray.pathDistanceForGridStep.y;
+            ray.mapPos.y += ray.stepDir.y;
             ySide=true;
         }
 
-        hit = getMap(int(rayMapPosition.x),int(rayMapPosition.y));
+        hit = getMap(int(ray.mapPos.x),int(ray.mapPos.y));
         if (hit!=0) break;
     }
     float perpDistance = 0;
-    if (ySide) perpDistance = sideDist.y - pathDistanceForGridStep.y;
-    else perpDistance = sideDist.x - pathDistanceForGridStep.x;
+    if (ySide) perpDistance = ray.sideDist.y - ray.pathDistanceForGridStep.y;
+    else perpDistance = ray.sideDist.x - ray.pathDistanceForGridStep.x;
 
-    bool thisPixelIsWall;
+
     int wallHeight = int(resolution.y/perpDistance);
     int wallBottom = int(horizon - wallHeight/2);
     int wallTop = int(horizon + wallHeight/2);
 
-    if (gl_FragCoord.y > wallTop || gl_FragCoord.y < wallBottom || hit==0) thisPixelIsWall=false;
-    else thisPixelIsWall=true;
+
 
     vec4 material;
-    if (thisPixelIsWall){
+    if (hit != 0 && gl_FragCoord.y >= wallBottom && gl_FragCoord.y <= wallTop) {
         float wallX;
         float textureX;
         float textureY;
 
         if (ySide) {
-            wallX = playerPosition.x + perpDistance * rayDirection.x;
+            wallX = playerPosition.x + perpDistance * ray.direction.x;
         }
         else{
-        wallX = playerPosition.y + perpDistance * rayDirection.y;
+        wallX = playerPosition.y + perpDistance * ray.direction.y;
         }
         wallX = wallX - floor(wallX);
 
         textureX = wallX;
-        if ((ySide && rayDirection.y < 0) || (!ySide && rayDirection.x > 0)) {
+        if ((ySide && ray.direction.y < 0) || (!ySide && ray.direction.x > 0)) {
             textureX = 1.0 - textureX; // Flip horizontally
         }
 
         textureY = (gl_FragCoord.y-wallBottom)/wallHeight;
 
-        vec2 texCoords = vec2(textureX,textureY);
+        vec2 texCoords = 2*vec2(textureX,textureY);
 
-        switch (hit){
-            case 1: material = texture(stoneTexture, texCoords); break;
-            case 2: material = texture(brickTexture, texCoords); break;
-            case 3: material = texture(dirtTexture, texCoords); break;
-            case 4: material = texture(dark_oak_logTexture, texCoords); break;
-            default: material = texture(spruce_planksTexture, texCoords); break;
+        switch (hit) {
+            case WALL_STONE:        material = texture(stoneTexture, texCoords);        break;
+            case WALL_BRICK:        material = texture(brickTexture, texCoords);        break;
+            case WALL_DIRT:         material = texture(dirtTexture, texCoords);         break;
+            case WALL_DARK_OAK_LOG: material = texture(dark_oak_logTexture, texCoords); break;
+            default:                material = texture(spruce_planksTexture, texCoords); break;
         }
 
+        float darkening = max(0,FOG_MAX - FOG_DISTANCE / (perpDistance*perpDistance));
 
-
-        float darkening = (0.7 - 10 / (perpDistance*perpDistance));
-        if (darkening<0) darkening = 0;
-        if (ySide) darkening+=0.2;
+        if (ySide) darkening+=SIDE_DARKENING;
 
         fragColor.rgb = material.rgb* (1-darkening);
         fragColor.a=1.0;
-
-
     }
     else {
         if (gl_FragCoord.y>horizon) {
-            float linearFactor = (resolution.y-gl_FragCoord.y)/(horizon+1);
-            float factor = log(linearFactor);
-            fragColor = vec4(0.1, 0.3, 0.8, 1.0)+vec4(0.01*factor, 0.04*factor, 0.01*factor, 0.0);
+            float linearFactor = (gl_FragCoord.y-horizon);
+            float factor = log(linearFactor)*10;
+            fragColor = vec4(0.1, 0.3, 0.8, 1.0)-vec4(0.01*factor, 0.04*factor, 0.01*factor, 0.0);
         }
         else{
             float distanceFromHorizon = horizon - gl_FragCoord.y;
             float rowDist = (0.5 * resolution.y) / distanceFromHorizon;
-            vec2 worldPos = playerPosition + (rowDist * rayDirection);
-            ivec2 cell = ivec2(floor(worldPos));
-            vec2 texCoord = fract(worldPos);
+            vec2 worldPos = playerPosition + (rowDist * ray.direction);
+            vec2 texCoord = 2*fract(worldPos);
             fragColor = texture(grassTexture, texCoord);
         }
     }

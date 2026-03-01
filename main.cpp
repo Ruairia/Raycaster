@@ -1,37 +1,20 @@
 #include "Vector2D.h"
-#include <cmath>
 #include <iostream>
-#include <ostream>
 #include <raylib.h>
 #include "rlgl.h"
 #include "Player.h"
-#include "Map.h"
-#include "ray.h"
 
 using namespace raycaster;
  int screenWidth = 800;
  int screenHeight = 450;
 
-static Texture2D crosshairTexture;
-static Texture2D brickTexture;
-static Texture2D dirtTexture;
-static Texture2D dark_oak_logTexture;
-static Texture2D spruce_planksTexture;
-static Texture2D stoneTexture;
-static Texture2D grassTexture;
-static int texLocBrick;
-static int texLocDirt;
-static int texLocDarkOakLog;
-static int texLocSprucePlanks;
-static int texLocStone;
-static int texLocGrass;
+
 
 constexpr short moveSpeed = 2; //squares per second
 constexpr float turnSpeed = 0.005; //radians per mouse delta
 
-void drawWall(int side, int screenX, double perpDistance, int hit);
 
-void loadShaderTexture(
+void bindTextureSlot(
     const Shader shader, const unsigned textureID, const int texLoc, const int slot)
 {
     rlActiveTextureSlot(slot);
@@ -48,39 +31,59 @@ struct TextureSlot
     const char* uniformName;
 };
 
+static Texture2D crosshair;
+
+static TextureSlot textures[] = {
+    {1, {}, 0, "../Assets/bricks.png",       "brickTexture"},
+  {2, {}, 0, "../Assets/dirt.png",          "dirtTexture"},
+  {3, {}, 0, "../Assets/dark_oak_log.png",  "dark_oak_logTexture"},
+  {4, {}, 0, "../Assets/spruce_planks.png", "spruce_planksTexture"},
+  {5, {}, 0, "../Assets/stone.png",         "stoneTexture"},
+  {6, {}, 0, "../Assets/grass.png",         "grassTexture"}
+};
+
+struct ShaderLocations
+{
+    int playerPosition;
+    int playerDirection;
+    int cameraPlane;
+    int horizon;
+};
+
+ShaderLocations getShaderLocations(Shader shader) {
+    return {
+        GetShaderLocation(shader, "playerPosition"),
+        GetShaderLocation(shader, "playerDirection"),
+        GetShaderLocation(shader, "cameraPlane"),
+        GetShaderLocation(shader, "horizon")
+    };
+}
+
 void loadTextures(Shader shader)
 {
-    brickTexture = LoadTexture("../Assets/bricks.png");
-    texLocBrick = GetShaderLocation(shader, "brickTexture");
-    SetShaderValueTexture(shader, texLocBrick, brickTexture);
-    SetTextureFilter(brickTexture, TEXTURE_FILTER_POINT);
+    for (auto& slot : textures) {
+        slot.texture = LoadTexture(slot.path);
+        slot.texLoc  = GetShaderLocation(shader, slot.uniformName);
+        SetTextureFilter(slot.texture, TEXTURE_FILTER_POINT);
+        rlActiveTextureSlot(slot.slot);
+        rlEnableTexture(slot.texture.id);
+        SetShaderValue(shader, slot.texLoc, &slot.slot, SHADER_UNIFORM_INT);
+    }
+    crosshair = LoadTexture("../Assets/crosshair.png");
+}
 
-    dirtTexture = LoadTexture("../Assets/dirt.png");
-    texLocDirt = GetShaderLocation(shader, "dirtTexture");
-    SetShaderValueTexture(shader, texLocDirt, dirtTexture);
-    SetTextureFilter(dirtTexture, TEXTURE_FILTER_POINT);
 
-    dark_oak_logTexture = LoadTexture("../Assets/dark_oak_log.png");
-    texLocDarkOakLog = GetShaderLocation(shader, "dark_oak_logTexture");
-    SetShaderValueTexture(shader, texLocDarkOakLog, dark_oak_logTexture);
-    SetTextureFilter(dark_oak_logTexture, TEXTURE_FILTER_POINT);
 
-    spruce_planksTexture = LoadTexture("../Assets/spruce_planks.png");
-    texLocSprucePlanks = GetShaderLocation(shader, "spruce_planksTexture");
-    SetShaderValueTexture(shader, texLocSprucePlanks, spruce_planksTexture);
-    SetTextureFilter(spruce_planksTexture, TEXTURE_FILTER_POINT);
-
-    stoneTexture = LoadTexture("../Assets/stone.png");
-    texLocStone = GetShaderLocation(shader, "stoneTexture");
-    SetShaderValueTexture(shader, texLocStone, stoneTexture);
-    SetTextureFilter(stoneTexture, TEXTURE_FILTER_POINT);
-
-    grassTexture = LoadTexture("../Assets/grass.png");
-    texLocGrass = GetShaderLocation(shader, "grassTexture");
-    SetShaderValueTexture(shader, texLocGrass, grassTexture);
-    SetTextureFilter(grassTexture, TEXTURE_FILTER_POINT);
-
-    crosshairTexture = LoadTexture("../Assets/crosshair.png");
+void updateUniforms(Shader shader,ShaderLocations shaderLocations, Player player)
+{
+    float playerPos[2] = {(float)player.position.x, (float)player.position.y};
+    float playerDir[2] = {(float)player.direction.x, (float)player.direction.y};
+    float camPlane[2]  = {(float)player.cameraPlane.x, (float)player.cameraPlane.y};
+    float horizon = player.horizon;
+    SetShaderValue(shader, shaderLocations.playerPosition, playerPos, SHADER_UNIFORM_VEC2);
+    SetShaderValue(shader, shaderLocations.playerDirection, playerDir, SHADER_UNIFORM_VEC2);
+    SetShaderValue(shader, shaderLocations.cameraPlane, camPlane, SHADER_UNIFORM_VEC2);
+    SetShaderValue(shader, shaderLocations.horizon, &horizon, SHADER_UNIFORM_FLOAT);
 }
 
 int main(){
@@ -102,24 +105,19 @@ int main(){
 
     auto player = Player({1.5,1.5},{0,-1},{1.32,0}, GetScreenHeight()/2);
 
-    int resLocPlayerPosition = GetShaderLocation(shader, "playerPosition");
-    int resLocPlayerDirection = GetShaderLocation(shader, "playerDirection");
-    int resLocCameraPlane = GetShaderLocation(shader, "cameraPlane");
-    int resLocHorizon = GetShaderLocation(shader, "horizon");
+    ShaderLocations shaderLocations = getShaderLocations(shader);
+
 
     double previousTime=GetTime();
     double currentTime {0};
     double seconds_elapsed {0};
 
 
+    for (TextureSlot texture_slot : textures)
+    {
+        bindTextureSlot(shader, texture_slot.texture.id, texture_slot.texLoc, texture_slot.slot);
+    }
 
-
-    loadShaderTexture(shader, brickTexture.id, texLocBrick, 1);
-    loadShaderTexture(shader, dirtTexture.id, texLocDirt, 2);
-    loadShaderTexture(shader, dark_oak_logTexture.id, texLocDarkOakLog, 3);
-    loadShaderTexture(shader, spruce_planksTexture.id, texLocSprucePlanks, 4);
-    loadShaderTexture(shader, stoneTexture.id, texLocStone, 5);
-    loadShaderTexture(shader, grassTexture.id, texLocGrass, 6);
 
 
     while (!WindowShouldClose()) //Game loop
@@ -134,10 +132,7 @@ int main(){
         float playerDir[2] = {(float)player.direction.x, (float)player.direction.y};
         float camPlane[2]  = {(float)player.cameraPlane.x, (float)player.cameraPlane.y};
         float horizon = player.horizon;
-        SetShaderValue(shader, resLocPlayerPosition, playerPos, SHADER_UNIFORM_VEC2);
-        SetShaderValue(shader, resLocPlayerDirection, playerDir, SHADER_UNIFORM_VEC2);
-        SetShaderValue(shader, resLocCameraPlane, camPlane, SHADER_UNIFORM_VEC2);
-        SetShaderValue(shader, resLocHorizon, &horizon, SHADER_UNIFORM_FLOAT);
+        updateUniforms(shader, shaderLocations, player);
 
 
 
@@ -151,7 +146,7 @@ int main(){
             static_cast<float>(GetScreenHeight()) / 2 - 32
         };
 
-        DrawTextureEx(crosshairTexture, crosshairPosition, 0, 4, WHITE);
+        DrawTextureEx(crosshair, crosshairPosition, 0, 4, WHITE);
 
         std::string fps_counter = "FPS: "+std::to_string(GetFPS());
         DrawText(fps_counter.c_str(), 20, 10, 20, RAYWHITE);
