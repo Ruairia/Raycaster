@@ -8,6 +8,10 @@ uniform vec2 playerPosition;
 uniform vec2 cameraPlane;
 
 uniform sampler2D brickTexture;
+uniform sampler2D dirtTexture;
+uniform sampler2D stoneTexture;
+uniform sampler2D spruce_planksTexture;
+uniform sampler2D dark_oak_logTexture;
 
 const int MAP_W = 10;
 const int MAP_H = 10;
@@ -29,11 +33,14 @@ int getMap(int x, int y) {
     return map[(y * MAP_W) + x];
 }
 
+
+
 void main() {
-    if (gl_FragCoord.y>resolution.y/2) fragColor = vec4(0.4, 0.75, 1.0, 1.0);
+    float horizon = resolution.y/2;
+    if (gl_FragCoord.y>horizon) fragColor = vec4(0.4, 0.75, 1.0, 1.0);
     else {
-        float linearFactor = gl_FragCoord.y/resolution.y;
-        float factor = 0.475*log(1-linearFactor);
+        float linearFactor = gl_FragCoord.y/horizon;
+        float factor = 0.175*log(1-linearFactor);
         fragColor = vec4(0.1, 0.6, 0.05, 1.0)+vec4(factor, factor, factor, 0.0);
     }
     float cameraX = (-0.5 + gl_FragCoord.x/resolution.x);
@@ -88,8 +95,8 @@ void main() {
 
     bool thisPixelIsWall;
     int wallHeight = int(resolution.y/perpDistance);
-    int wallBottom = int(resolution.y/2 - wallHeight/2);
-    int wallTop = int(resolution.y/2 + wallHeight/2);
+    int wallBottom = int(horizon - wallHeight/2);
+    int wallTop = int(horizon + wallHeight/2);
 
     if (gl_FragCoord.y > wallTop || gl_FragCoord.y < wallBottom || hit==0) thisPixelIsWall=false;
     else thisPixelIsWall=true;
@@ -115,25 +122,27 @@ void main() {
 
         textureY = (gl_FragCoord.y-wallBottom)/wallHeight;
 
-        vec4 textureColour = texture(brickTexture, vec2(textureX,textureY));
+        vec2 texCoords = vec2(textureX,textureY);
 
-//        switch (hit){
-//            case 1: material = vec4(textureX,textureY,1.0,1.0); break;
-//            case 2: material = vec4(textureY,textureX,0.0,1.0); break;
-//            case 3: material = vec4(0.0,textureX,0.0,1.0); break;
-//            case 4: material = vec4(0.0,textureY,1.0,1.0); break;
-//            default: material = vec4(0.4,0.4,0.4,1.0); break;
-//        }
+        switch (hit){
+            case 1: material = texture(stoneTexture, texCoords); break;
+            case 2: material = texture(brickTexture, texCoords); break;
+            case 3: material = texture(dirtTexture, texCoords); break;
+            case 4: material = texture(dark_oak_logTexture, texCoords); break;
+            default: material = texture(spruce_planksTexture, texCoords); break;
+        }
 
-        if (hit==1) textureColour = vec4(1.0,1.0,1.0,1.0);
+
 
         float darkening = (0.7 - 10 / (perpDistance*perpDistance));
         if (darkening<0) darkening = 0;
         if (ySide) darkening+=0.2;
 
-        fragColor.rgb = textureColour.rgb* (1-darkening);
+        fragColor.rgb = material.rgb* (1-darkening);
         fragColor.a=1.0;
     }
 
 }
+
+
 

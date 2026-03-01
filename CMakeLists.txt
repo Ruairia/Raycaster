@@ -24,10 +24,12 @@ add_executable(raycaster
         ray.h
         raycaster_shader.glsl
 )
-
+add_executable(shader_test shader_test.cpp)
 
 # Link required libraries
 target_link_libraries(raycaster ${RAYLIB_LIBRARIES})
-
+target_link_libraries(shader_test ${RAYLIB_LIBRARIES})
 
 configure_file(raycaster_shader.glsl raycaster_shader.glsl COPYONLY)
+configure_file(shader_test.glsl shader_test.glsl COPYONLY)
+

@@ -3,7 +3,7 @@
 #include <iostream>
 #include <ostream>
 #include <raylib.h>
-
+#include "rlgl.h"
 #include "Player.h"
 #include "Map.h"
 #include "ray.h"
@@ -11,18 +11,57 @@
 using namespace raycaster;
  int screenWidth = 800;
  int screenHeight = 450;
+
 static Texture2D brickTexture;
+static Texture2D dirtTexture;
+static Texture2D dark_oak_logTexture;
+static Texture2D spruce_planksTexture;
+static Texture2D stoneTexture;
+static int texLocBrick;
+static int texLocDirt;
+static int texLocDarkOakLog;
+static int texLocSprucePlanks;
+static int texLocStone;
+
 constexpr short moveSpeed = 2; //squares per second
 constexpr float turnSpeed = 0.005; //radians per mouse delta
 
 void drawWall(int side, int screenX, double perpDistance, int hit);
 
+void loadShaderTexture(
+    const Shader shader, const unsigned textureID, const int texLoc, const int slot)
+{
+    rlActiveTextureSlot(slot);
+    rlEnableTexture(textureID);
+    SetShaderValue(shader, texLoc, &slot, SHADER_UNIFORM_INT);
+}
+
 void loadTextures(Shader shader)
 {
-    brickTexture = LoadTexture("../Assets/Minecraft-Bricks.png");
-    int texLocBrick = GetShaderLocation(shader, "brickTexture");
+    brickTexture = LoadTexture("../Assets/bricks.png");
+    texLocBrick = GetShaderLocation(shader, "brickTexture");
     SetShaderValueTexture(shader, texLocBrick, brickTexture);
     SetTextureFilter(brickTexture, TEXTURE_FILTER_POINT);
+
+    dirtTexture = LoadTexture("../Assets/dirt.png");
+    texLocDirt = GetShaderLocation(shader, "dirtTexture");
+    SetShaderValueTexture(shader, texLocDirt, dirtTexture);
+    SetTextureFilter(dirtTexture, TEXTURE_FILTER_POINT);
+
+    dark_oak_logTexture = LoadTexture("../Assets/dark_oak_log.png");
+    texLocDarkOakLog = GetShaderLocation(shader, "dark_oak_logTexture");
+    SetShaderValueTexture(shader, texLocDarkOakLog, dark_oak_logTexture);
+    SetTextureFilter(dark_oak_logTexture, TEXTURE_FILTER_POINT);
+
+    spruce_planksTexture = LoadTexture("../Assets/spruce_planks.png");
+    texLocSprucePlanks = GetShaderLocation(shader, "spruce_planksTexture");
+    SetShaderValueTexture(shader, texLocSprucePlanks, spruce_planksTexture);
+    SetTextureFilter(spruce_planksTexture, TEXTURE_FILTER_POINT);
+
+    stoneTexture = LoadTexture("../Assets/stone.png");
+    texLocStone = GetShaderLocation(shader, "stoneTexture");
+    SetShaderValueTexture(shader, texLocStone, stoneTexture);
+    SetTextureFilter(stoneTexture, TEXTURE_FILTER_POINT);
 }
 
 int main(){
@@ -52,6 +91,16 @@ int main(){
     double currentTime {0};
     double seconds_elapsed {0};
 
+
+
+
+    loadShaderTexture(shader, brickTexture.id, texLocBrick, 1);
+    loadShaderTexture(shader, dirtTexture.id, texLocDirt, 2);
+    loadShaderTexture(shader, dark_oak_logTexture.id, texLocDarkOakLog, 3);
+    loadShaderTexture(shader, spruce_planksTexture.id, texLocSprucePlanks, 4);
+    loadShaderTexture(shader, stoneTexture.id, texLocStone, 5);
+
+
     while (!WindowShouldClose()) //Game loop
     {
         currentTime = GetTime();
@@ -67,9 +116,13 @@ int main(){
         SetShaderValue(shader, resLocPlayerDirection, playerDir, SHADER_UNIFORM_VEC2);
         SetShaderValue(shader, resLocCameraPlane, camPlane, SHADER_UNIFORM_VEC2);
 
+
+
+
         BeginDrawing();
         BeginShaderMode(shader);
-        DrawRectangle(0, 0, screenWidth, screenHeight, WHITE);
+
+        DrawRectangle(0,0,GetScreenWidth(),GetScreenHeight(),WHITE);
         EndShaderMode();
         std::string fps_counter = "FPS: "+std::to_string(GetFPS());
         DrawText(fps_counter.c_str(), 20, 10, 20, RAYWHITE);
