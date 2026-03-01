@@ -18,11 +18,13 @@ static Texture2D dirtTexture;
 static Texture2D dark_oak_logTexture;
 static Texture2D spruce_planksTexture;
 static Texture2D stoneTexture;
+static Texture2D grassTexture;
 static int texLocBrick;
 static int texLocDirt;
 static int texLocDarkOakLog;
 static int texLocSprucePlanks;
 static int texLocStone;
+static int texLocGrass;
 
 constexpr short moveSpeed = 2; //squares per second
 constexpr float turnSpeed = 0.005; //radians per mouse delta
@@ -36,6 +38,15 @@ void loadShaderTexture(
     rlEnableTexture(textureID);
     SetShaderValue(shader, texLoc, &slot, SHADER_UNIFORM_INT);
 }
+
+struct TextureSlot
+{
+    int slot;
+    Texture2D texture;
+    int texLoc;
+    const char* path;
+    const char* uniformName;
+};
 
 void loadTextures(Shader shader)
 {
@@ -63,6 +74,11 @@ void loadTextures(Shader shader)
     texLocStone = GetShaderLocation(shader, "stoneTexture");
     SetShaderValueTexture(shader, texLocStone, stoneTexture);
     SetTextureFilter(stoneTexture, TEXTURE_FILTER_POINT);
+
+    grassTexture = LoadTexture("../Assets/grass.png");
+    texLocGrass = GetShaderLocation(shader, "grassTexture");
+    SetShaderValueTexture(shader, texLocGrass, grassTexture);
+    SetTextureFilter(grassTexture, TEXTURE_FILTER_POINT);
 
     crosshairTexture = LoadTexture("../Assets/crosshair.png");
 }
@@ -103,6 +119,7 @@ int main(){
     loadShaderTexture(shader, dark_oak_logTexture.id, texLocDarkOakLog, 3);
     loadShaderTexture(shader, spruce_planksTexture.id, texLocSprucePlanks, 4);
     loadShaderTexture(shader, stoneTexture.id, texLocStone, 5);
+    loadShaderTexture(shader, grassTexture.id, texLocGrass, 6);
 
 
     while (!WindowShouldClose()) //Game loop

@@ -14,6 +14,7 @@ uniform sampler2D dirtTexture;
 uniform sampler2D stoneTexture;
 uniform sampler2D spruce_planksTexture;
 uniform sampler2D dark_oak_logTexture;
+uniform sampler2D grassTexture;
 
 const int MAP_W = 24;
 const int MAP_H = 24;
@@ -62,17 +63,10 @@ float getBayerValue(ivec2 pos) {
     return bayer4[idx];
 }
 
-vec4 drawFloor(){
-    float linearFactor = gl_FragCoord.y/horizon;
-    float factor = 0.175*log(1-linearFactor);
-    return vec4(0.1, 0.6, 0.05, 1.0)+vec4(factor, factor, factor, 0.0);
-}
+
 
 void main() {
-    if (gl_FragCoord.y>horizon) fragColor = vec4(0.4, 0.75, 1.0, 1.0);
-    else {
-        fragColor = drawFloor();
-    }
+     fragColor = vec4(0.4, 0.75, 1.0, 1.0);
     float cameraX = (-0.5 + gl_FragCoord.x/resolution.x);
     vec2 rayDirection = playerDirection + (cameraPlane*cameraX);
     ivec2 rayMapPosition = ivec2(int(playerPosition.x),int(playerPosition.y));
@@ -172,6 +166,21 @@ void main() {
         fragColor.a=1.0;
 
 
+    }
+    else {
+        if (gl_FragCoord.y>horizon) {
+            float linearFactor = (resolution.y-gl_FragCoord.y)/(horizon+1);
+            float factor = log(linearFactor);
+            fragColor = vec4(0.1, 0.3, 0.8, 1.0)+vec4(0.01*factor, 0.04*factor, 0.01*factor, 0.0);
+        }
+        else{
+            float distanceFromHorizon = horizon - gl_FragCoord.y;
+            float rowDist = (0.5 * resolution.y) / distanceFromHorizon;
+            vec2 worldPos = playerPosition + (rowDist * rayDirection);
+            ivec2 cell = ivec2(floor(worldPos));
+            vec2 texCoord = fract(worldPos);
+            fragColor = texture(grassTexture, texCoord);
+        }
     }
     ivec2 screenPos = ivec2(gl_FragCoord.xy);
     float threshold = getBayerValue(screenPos);
