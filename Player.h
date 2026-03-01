@@ -14,11 +14,12 @@ public:
     Vector2D position {};
     Vector2D direction {};
     Vector2D cameraPlane {};
+    float horizon {0};
 
     void handleMovement(float moveSpeed, float turnSpeed, double secondsElapsed);
     void moveForward(const Vector2D& movement);
     void moveSideways(const Vector2D& movement);
-    Player(const Vector2D& position, const Vector2D& direction, const Vector2D& cameraPlane);
+    Player(const Vector2D& position, const Vector2D& direction, const Vector2D& cameraPlane, const float horizon);
     void rotate(double angleInRadians);
 };
 

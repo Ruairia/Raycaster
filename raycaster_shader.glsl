@@ -7,41 +7,71 @@ uniform vec2 playerDirection;
 uniform vec2 playerPosition;
 uniform vec2 cameraPlane;
 
+uniform float horizon;
+
 uniform sampler2D brickTexture;
 uniform sampler2D dirtTexture;
 uniform sampler2D stoneTexture;
 uniform sampler2D spruce_planksTexture;
 uniform sampler2D dark_oak_logTexture;
 
-const int MAP_W = 10;
-const int MAP_H = 10;
-const int map[100] = int[](
-1,1,1,1,1,1,1,1,1,1,
-1,0,2,0,1,0,0,0,0,1,
-1,0,0,0,1,0,3,2,0,1,
-1,0,0,0,1,0,0,0,0,1,
-1,4,3,0,1,1,0,0,0,1,
-1,0,5,0,0,0,0,0,0,1,
-1,0,0,0,0,0,0,0,0,1,
-1,0,0,0,0,0,0,4,0,1,
-1,2,0,0,0,0,0,0,0,1,
-1,1,1,1,1,1,1,1,1,1
+const int MAP_W = 24;
+const int MAP_H = 24;
+const int map[576] = int[](
+8,8,8,8,8,8,8,8,8,8,8,4,4,6,4,4,6,4,6,4,4,4,6,4,
+8,0,0,0,0,0,0,0,0,0,8,4,0,0,0,0,0,0,0,0,0,0,0,4,
+8,0,3,3,0,0,0,0,0,8,8,4,0,0,0,0,0,0,0,0,0,0,0,6,
+8,0,0,3,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,6,
+8,0,3,3,0,0,0,0,0,8,8,4,0,0,0,0,0,0,0,0,0,0,0,4,
+8,0,0,0,0,0,0,0,0,0,8,4,0,0,0,0,0,6,6,6,0,6,4,6,
+8,8,8,8,0,8,8,8,8,8,8,4,4,4,4,4,4,6,0,0,0,0,0,6,
+7,7,7,7,0,7,7,7,7,0,8,0,8,0,8,0,8,4,0,4,0,6,0,6,
+7,7,0,0,0,0,0,0,7,8,0,8,0,8,0,8,8,6,0,0,0,0,0,6,
+7,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,8,6,0,0,0,0,0,4,
+7,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,8,6,0,6,0,6,0,6,
+7,7,0,0,0,0,0,0,7,8,0,8,0,8,0,8,8,6,4,6,0,6,6,6,
+7,7,7,7,0,7,7,7,7,8,8,4,0,6,8,4,8,3,3,3,0,3,3,3,
+2,2,2,2,0,2,2,2,2,4,6,4,0,0,6,0,6,3,0,0,0,0,0,3,
+2,2,0,0,0,0,0,2,2,4,0,0,0,0,0,0,4,3,0,0,0,0,0,3,
+2,0,0,0,0,0,0,0,2,4,0,0,0,0,0,0,4,3,0,0,0,0,0,3,
+1,0,0,0,0,0,0,0,1,4,4,4,4,4,6,0,6,3,3,0,0,0,3,3,
+2,0,0,0,0,0,0,0,2,2,2,1,2,2,2,6,6,0,0,5,0,5,0,5,
+2,2,0,0,0,0,0,2,2,2,0,0,0,2,2,0,5,0,5,0,0,0,5,5,
+2,0,0,0,0,0,0,0,2,0,0,0,0,0,2,5,0,5,0,5,0,5,0,5,
+1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,5,
+2,0,0,0,0,0,0,0,2,0,0,0,0,0,2,5,0,5,0,5,0,5,0,5,
+2,2,0,0,0,0,0,2,2,2,0,0,0,2,2,0,5,0,5,0,0,0,5,5,
+2,2,2,2,1,2,2,2,2,2,2,1,2,2,2,5,5,5,5,5,5,5,5,5
 );
+
 
 int getMap(int x, int y) {
     if (x < 0 || x >= MAP_W || y < 0 || y >= MAP_H) return 1;
     return map[(y * MAP_W) + x];
 }
 
+float bayer4[16] = float[](
+0.0/16.0,  8.0/16.0,  2.0/16.0, 10.0/16.0,
+12.0/16.0,  4.0/16.0, 14.0/16.0,  6.0/16.0,
+3.0/16.0, 11.0/16.0,  1.0/16.0,  9.0/16.0,
+15.0/16.0,  7.0/16.0, 13.0/16.0,  5.0/16.0
+);
 
+float getBayerValue(ivec2 pos) {
+    int idx = (pos.x & 3) + (pos.y & 3) * 4;
+    return bayer4[idx];
+}
+
+vec4 drawFloor(){
+    float linearFactor = gl_FragCoord.y/horizon;
+    float factor = 0.175*log(1-linearFactor);
+    return vec4(0.1, 0.6, 0.05, 1.0)+vec4(factor, factor, factor, 0.0);
+}
 
 void main() {
-    float horizon = resolution.y/2;
     if (gl_FragCoord.y>horizon) fragColor = vec4(0.4, 0.75, 1.0, 1.0);
     else {
-        float linearFactor = gl_FragCoord.y/horizon;
-        float factor = 0.175*log(1-linearFactor);
-        fragColor = vec4(0.1, 0.6, 0.05, 1.0)+vec4(factor, factor, factor, 0.0);
+        fragColor = drawFloor();
     }
     float cameraX = (-0.5 + gl_FragCoord.x/resolution.x);
     vec2 rayDirection = playerDirection + (cameraPlane*cameraX);
@@ -140,8 +170,12 @@ void main() {
 
         fragColor.rgb = material.rgb* (1-darkening);
         fragColor.a=1.0;
-    }
 
+
+    }
+    ivec2 screenPos = ivec2(gl_FragCoord.xy);
+    float threshold = getBayerValue(screenPos);
+    fragColor.rgb += threshold / 128.0; // or subtract, depending on desired effect
 }
 
 

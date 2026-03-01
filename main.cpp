@@ -12,6 +12,7 @@ using namespace raycaster;
  int screenWidth = 800;
  int screenHeight = 450;
 
+static Texture2D crosshairTexture;
 static Texture2D brickTexture;
 static Texture2D dirtTexture;
 static Texture2D dark_oak_logTexture;
@@ -62,6 +63,8 @@ void loadTextures(Shader shader)
     texLocStone = GetShaderLocation(shader, "stoneTexture");
     SetShaderValueTexture(shader, texLocStone, stoneTexture);
     SetTextureFilter(stoneTexture, TEXTURE_FILTER_POINT);
+
+    crosshairTexture = LoadTexture("../Assets/crosshair.png");
 }
 
 int main(){
@@ -81,11 +84,12 @@ int main(){
     SetTargetFPS(100);
     DisableCursor();
 
-    auto player = Player({3.5,2.5},{0,-1},{1.32,0});
+    auto player = Player({1.5,1.5},{0,-1},{1.32,0}, GetScreenHeight()/2);
 
     int resLocPlayerPosition = GetShaderLocation(shader, "playerPosition");
     int resLocPlayerDirection = GetShaderLocation(shader, "playerDirection");
     int resLocCameraPlane = GetShaderLocation(shader, "cameraPlane");
+    int resLocHorizon = GetShaderLocation(shader, "horizon");
 
     double previousTime=GetTime();
     double currentTime {0};
@@ -112,18 +116,26 @@ int main(){
         float playerPos[2] = {(float)player.position.x, (float)player.position.y};
         float playerDir[2] = {(float)player.direction.x, (float)player.direction.y};
         float camPlane[2]  = {(float)player.cameraPlane.x, (float)player.cameraPlane.y};
+        float horizon = player.horizon;
         SetShaderValue(shader, resLocPlayerPosition, playerPos, SHADER_UNIFORM_VEC2);
         SetShaderValue(shader, resLocPlayerDirection, playerDir, SHADER_UNIFORM_VEC2);
         SetShaderValue(shader, resLocCameraPlane, camPlane, SHADER_UNIFORM_VEC2);
-
+        SetShaderValue(shader, resLocHorizon, &horizon, SHADER_UNIFORM_FLOAT);
 
 
 
         BeginDrawing();
         BeginShaderMode(shader);
-
         DrawRectangle(0,0,GetScreenWidth(),GetScreenHeight(),WHITE);
         EndShaderMode();
+
+        const Vector2 crosshairPosition = {
+            static_cast<float>(GetScreenWidth()) / 2 - 32,
+            static_cast<float>(GetScreenHeight()) / 2 - 32
+        };
+
+        DrawTextureEx(crosshairTexture, crosshairPosition, 0, 4, WHITE);
+
         std::string fps_counter = "FPS: "+std::to_string(GetFPS());
         DrawText(fps_counter.c_str(), 20, 10, 20, RAYWHITE);
         EndDrawing();

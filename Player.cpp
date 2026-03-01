@@ -10,8 +10,8 @@
 
 namespace raycaster {
 
-    Player::Player(const Vector2D& position, const Vector2D& direction, const Vector2D& cameraPlane)
-    : position(position), direction(direction), cameraPlane(cameraPlane) {}
+    Player::Player(const Vector2D& position, const Vector2D& direction, const Vector2D& cameraPlane, const float horizon)
+    : position(position), direction(direction), cameraPlane(cameraPlane), horizon(horizon) {}
 
 void Player::moveForward(const Vector2D& movement) {
         Vector2D next = position + movement;
@@ -53,6 +53,10 @@ void Player::rotate(const double angleInRadians) {
     }
         float mouseDeltaX = GetMouseDelta().x;
         rotate(turnSpeed * mouseDeltaX);
+        float mouseDeltaY = GetMouseDelta().y;
+        horizon += 2*mouseDeltaY;
+        if (horizon < 0) horizon = 0;
+        if (horizon > GetScreenHeight()) horizon = GetScreenHeight();
 }
 
 } // raycaster
