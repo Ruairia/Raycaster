@@ -8,6 +8,8 @@
 namespace raycaster {
 
 class Map {
+    static const int MAP_Width=24;
+    static const int MAP_Height=24;
 public:
     static constexpr int map[24][24] = {
         {8,8,8,8,8,8,8,8,8,8,8,4,4,6,4,4,6,4,6,4,4,4,6,4},
@@ -43,7 +45,7 @@ static int getSquare(int x, int y)
 
     static bool hasSquare(int x, int y) {
         bool returnValue;
-        if (x>=0 && x<=9 && y>=0 && y<=9)
+        if (x>=0 && x<=MAP_Width && y>=0 && y<=MAP_Height)
         {
             returnValue = true;
         }

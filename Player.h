@@ -19,8 +19,9 @@ public:
     void handleMovement(float moveSpeed, float turnSpeed, double secondsElapsed);
     void moveForward(const Vector2D& movement);
     void moveSideways(const Vector2D& movement);
-    Player(const Vector2D& position, const Vector2D& direction, const Vector2D& cameraPlane, const float pitch);
-    void rotate(double angleInRadians);
+    Player(const Vector2D& position, const Vector2D& direction, const Vector2D& cameraPlane);
+    void rotateYaw(float angleInRadians);
+    void rotatePitch(float angleInRadians);
 };
 
 } // raycaster

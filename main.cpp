@@ -1,6 +1,6 @@
-#include "Vector2D.h"
-#include <iostream>
+#include <string>
 #include <raylib.h>
+#include "Vector2D.h"
 #include "rlgl.h"
 #include "Player.h"
 
@@ -47,7 +47,7 @@ struct ShaderLocations
     int playerPosition;
     int playerDirection;
     int cameraPlane;
-    int pitch;
+    int pixelOffset;
 };
 
 ShaderLocations getShaderLocations(Shader shader) {
@@ -55,7 +55,7 @@ ShaderLocations getShaderLocations(Shader shader) {
         GetShaderLocation(shader, "playerPosition"),
         GetShaderLocation(shader, "playerDirection"),
         GetShaderLocation(shader, "cameraPlane"),
-        GetShaderLocation(shader, "pitch")
+        GetShaderLocation(shader, "pixelOffset")
     };
 }
 
@@ -74,16 +74,16 @@ void loadTextures(Shader shader)
 
 
 
-void updateUniforms(Shader shader,ShaderLocations shaderLocations, Player player)
+void updateUniforms(Shader shader,ShaderLocations shaderLocations, Player player, float verticalFactor)
 {
     float playerPos[2] = {(float)player.position.x, (float)player.position.y};
     float playerDir[2] = {(float)player.direction.x, (float)player.direction.y};
     float camPlane[2]  = {(float)player.cameraPlane.x, (float)player.cameraPlane.y};
-    float pitch = player.pitch;
+    float pixelOffset = verticalFactor * tan(player.pitch);   // positive pitch → look up → horizon moves down
+    SetShaderValue(shader, shaderLocations.pixelOffset, &pixelOffset, SHADER_UNIFORM_FLOAT);
     SetShaderValue(shader, shaderLocations.playerPosition, playerPos, SHADER_UNIFORM_VEC2);
     SetShaderValue(shader, shaderLocations.playerDirection, playerDir, SHADER_UNIFORM_VEC2);
     SetShaderValue(shader, shaderLocations.cameraPlane, camPlane, SHADER_UNIFORM_VEC2);
-    SetShaderValue(shader, shaderLocations.pitch, &pitch, SHADER_UNIFORM_FLOAT);
 }
 
 int main(){
@@ -103,7 +103,19 @@ int main(){
     SetTargetFPS(120);
     DisableCursor();
 
-    auto player = Player({1.5,1.5},{0,-1},{1.32,0}, GetScreenHeight()/2);
+    auto player = Player({1.5,1.5},{0,-1},{1.32,0});
+
+    // Compute vertical factor (focal length in pixels)
+    float camPlaneLen = sqrt(player.cameraPlane.x * player.cameraPlane.x +
+                             player.cameraPlane.y * player.cameraPlane.y);
+    float hfov = 2.0f * atan(camPlaneLen);                    // horizontal FOV
+    float aspect = (float)screenHeight / (float)screenWidth;
+    float vfov = 2.0f * atan(tan(hfov * 0.5f) * aspect);      // vertical FOV
+    float verticalFactor = (screenHeight / 2.0f) / tan(vfov * 0.5f);
+
+    // Get uniform location and set it once (it never changes)
+    int verticalFactorLoc = GetShaderLocation(shader, "verticalFactor");
+    SetShaderValue(shader, verticalFactorLoc, &verticalFactor, SHADER_UNIFORM_FLOAT);
 
     ShaderLocations shaderLocations = getShaderLocations(shader);
 
@@ -129,7 +141,7 @@ int main(){
         player.handleMovement(moveSpeed, turnSpeed, seconds_elapsed);
 
 
-        updateUniforms(shader, shaderLocations, player);
+        updateUniforms(shader, shaderLocations, player, verticalFactor);
 
 
 
