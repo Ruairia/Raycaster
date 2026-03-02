@@ -100,7 +100,7 @@ int main(){
 
     loadTextures(shader);
 
-    SetTargetFPS(100);
+    SetTargetFPS(120);
     DisableCursor();
 
     auto player = Player({1.5,1.5},{0,-1},{1.32,0}, GetScreenHeight()/2);

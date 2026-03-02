@@ -48,6 +48,7 @@ const int map[576] = int[](
 const float FOG_MAX = 0.7;
 const float FOG_DISTANCE = 10.0;
 const float SIDE_DARKENING = 0.2;
+const int VIEW_DIST = 24;
 
 const int WALL_STONE        = 1;
 const int WALL_BRICK        = 2;
@@ -79,6 +80,34 @@ struct Ray {
     ivec2 stepDir;
 };
 
+struct HitResult {
+    int wallType;
+    bool ySide;
+    float perpDistance;
+};
+
+HitResult performDDA(Ray ray){
+    HitResult hitResult;
+    for (int i = 0; i<VIEW_DIST; i++){
+        if (ray.sideDist.x<ray.sideDist.y){
+            ray.sideDist.x += ray.pathDistanceForGridStep.x;
+            ray.mapPos.x += ray.stepDir.x;
+            hitResult.ySide=false;
+        }
+        else{
+            ray.sideDist.y += ray.pathDistanceForGridStep.y;
+            ray.mapPos.y += ray.stepDir.y;
+            hitResult.ySide=true;
+        }
+
+        hitResult.wallType = getMap(int(ray.mapPos.x),int(ray.mapPos.y));
+        if (hitResult.wallType!=0) break;
+    }
+    if (hitResult.ySide) hitResult.perpDistance = ray.sideDist.y - ray.pathDistanceForGridStep.y;
+    else hitResult.perpDistance = ray.sideDist.x - ray.pathDistanceForGridStep.x;
+    return hitResult;
+}
+
 void main() {
     float cameraX = (-0.5 + gl_FragCoord.x/resolution.x);
     Ray ray;
@@ -107,51 +136,33 @@ void main() {
         ray.sideDist.y = (ray.mapPos.y + 1 - playerPosition.y) * ray.pathDistanceForGridStep.y;
     }
 
-    int hit = 0;
-    bool ySide = false;
 
-    for (int i = 0; i<64; i++){
-        if (ray.sideDist.x<ray.sideDist.y){
-            ray.sideDist.x += ray.pathDistanceForGridStep.x;
-            ray.mapPos.x += ray.stepDir.x;
-            ySide=false;
-        }
-        else{
-            ray.sideDist.y += ray.pathDistanceForGridStep.y;
-            ray.mapPos.y += ray.stepDir.y;
-            ySide=true;
-        }
-
-        hit = getMap(int(ray.mapPos.x),int(ray.mapPos.y));
-        if (hit!=0) break;
-    }
-    float perpDistance = 0;
-    if (ySide) perpDistance = ray.sideDist.y - ray.pathDistanceForGridStep.y;
-    else perpDistance = ray.sideDist.x - ray.pathDistanceForGridStep.x;
+    HitResult hitResult = performDDA(ray);
 
 
-    int wallHeight = int(resolution.y/perpDistance);
+
+    int wallHeight = int(resolution.y/hitResult.perpDistance);
     int wallBottom = int(horizon - wallHeight/2);
     int wallTop = int(horizon + wallHeight/2);
 
 
 
     vec4 material;
-    if (hit != 0 && gl_FragCoord.y >= wallBottom && gl_FragCoord.y <= wallTop) {
+    if (hitResult.wallType != 0 && gl_FragCoord.y >= wallBottom && gl_FragCoord.y <= wallTop) {
         float wallX;
         float textureX;
         float textureY;
 
-        if (ySide) {
-            wallX = playerPosition.x + perpDistance * ray.direction.x;
+        if (hitResult.ySide) {
+            wallX = playerPosition.x + hitResult.perpDistance * ray.direction.x;
         }
         else{
-        wallX = playerPosition.y + perpDistance * ray.direction.y;
+        wallX = playerPosition.y + hitResult.perpDistance * ray.direction.y;
         }
         wallX = wallX - floor(wallX);
 
         textureX = wallX;
-        if ((ySide && ray.direction.y < 0) || (!ySide && ray.direction.x > 0)) {
+        if ((hitResult.ySide && ray.direction.y < 0) || (!hitResult.ySide && ray.direction.x > 0)) {
             textureX = 1.0 - textureX; // Flip horizontally
         }
 
@@ -159,7 +170,7 @@ void main() {
 
         vec2 texCoords = 2*vec2(textureX,textureY);
 
-        switch (hit) {
+        switch (hitResult.wallType) {
             case WALL_STONE:        material = texture(stoneTexture, texCoords);        break;
             case WALL_BRICK:        material = texture(brickTexture, texCoords);        break;
             case WALL_DIRT:         material = texture(dirtTexture, texCoords);         break;
@@ -167,9 +178,9 @@ void main() {
             default:                material = texture(spruce_planksTexture, texCoords); break;
         }
 
-        float darkening = max(0,FOG_MAX - FOG_DISTANCE / (perpDistance*perpDistance));
+        float darkening = max(0.0,FOG_MAX - FOG_DISTANCE / (hitResult.perpDistance*hitResult.perpDistance));
 
-        if (ySide) darkening+=SIDE_DARKENING;
+        if (hitResult.ySide) darkening+=SIDE_DARKENING;
 
         fragColor.rgb = material.rgb* (1-darkening);
         fragColor.a=1.0;
@@ -190,7 +201,7 @@ void main() {
     }
     ivec2 screenPos = ivec2(gl_FragCoord.xy);
     float threshold = getBayerValue(screenPos);
-    fragColor.rgb += threshold / 128.0; // or subtract, depending on desired effect
+    fragColor.rgb += threshold / 64.0; // or subtract, depending on desired effect
 }
 
 
