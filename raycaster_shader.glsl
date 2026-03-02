@@ -103,7 +103,7 @@ void main() {
 
 
 
-        float darkening = calcDarkening(hitResult.perpDistance);
+        float darkening = calcDarkening(hitResult.perpDistance * length(ray.direction));
 
         if (hitResult.ySide) darkening+=SIDE_DARKENING;
 
@@ -249,7 +249,7 @@ vec3 calcGroundColour(float horizon, Ray ray){
     float rowDist = (PLAYER_HEIGHT * resolution.y) / distanceFromHorizon;
     vec2 worldPos = playerPosition + (rowDist * ray.direction);
     vec2 texCoord = 2*fract(worldPos);
-    return texture(grassTexture, texCoord).rgb*(1-calcDarkening(rowDist));
+    return texture(grassTexture, texCoord).rgb*(1-calcDarkening(rowDist * length(ray.direction)));
 }
 
 
