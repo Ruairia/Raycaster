@@ -48,7 +48,7 @@ const int map[576] = int[](
 const float FOG_MAX = 0.7;
 const float FOG_DISTANCE = 10.0;
 const float SIDE_DARKENING = 0.2;
-const int VIEW_DIST = 24;
+const int VIEW_DIST = 48;
 
 const int WALL_STONE        = 1;
 const int WALL_BRICK        = 2;
@@ -109,6 +109,7 @@ HitResult performDDA(Ray ray){
 }
 
 void main() {
+    float playerHeight = 0.5;
     float cameraX = (-0.5 + gl_FragCoord.x/resolution.x);
     Ray ray;
     ray.direction = playerDirection + (cameraPlane*cameraX);
@@ -141,7 +142,7 @@ void main() {
 
 
 
-    int wallHeight = int(resolution.y/hitResult.perpDistance);
+    int wallHeight = int(playerHeight*2*resolution.y/hitResult.perpDistance);
     int wallBottom = int(horizon - wallHeight/2);
     int wallTop = int(horizon + wallHeight/2);
 
@@ -193,10 +194,12 @@ void main() {
         }
         else{
             float distanceFromHorizon = horizon - gl_FragCoord.y;
-            float rowDist = (0.5 * resolution.y) / distanceFromHorizon;
+            float rowDist = (playerHeight * resolution.y) / distanceFromHorizon;
             vec2 worldPos = playerPosition + (rowDist * ray.direction);
             vec2 texCoord = 2*fract(worldPos);
             fragColor = texture(grassTexture, texCoord);
+            float darkening = 0.5*max(0.0,FOG_MAX - FOG_DISTANCE / (rowDist*rowDist));
+            fragColor.rgb-=(darkening,darkening,darkening);
         }
     }
     ivec2 screenPos = ivec2(gl_FragCoord.xy);

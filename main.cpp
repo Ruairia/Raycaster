@@ -128,10 +128,7 @@ int main(){
 
         player.handleMovement(moveSpeed, turnSpeed, seconds_elapsed);
 
-        float playerPos[2] = {(float)player.position.x, (float)player.position.y};
-        float playerDir[2] = {(float)player.direction.x, (float)player.direction.y};
-        float camPlane[2]  = {(float)player.cameraPlane.x, (float)player.cameraPlane.y};
-        float horizon = player.horizon;
+
         updateUniforms(shader, shaderLocations, player);
 
 
