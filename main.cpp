@@ -47,7 +47,7 @@ struct ShaderLocations
     int playerPosition;
     int playerDirection;
     int cameraPlane;
-    int horizon;
+    int pitch;
 };
 
 ShaderLocations getShaderLocations(Shader shader) {
@@ -55,7 +55,7 @@ ShaderLocations getShaderLocations(Shader shader) {
         GetShaderLocation(shader, "playerPosition"),
         GetShaderLocation(shader, "playerDirection"),
         GetShaderLocation(shader, "cameraPlane"),
-        GetShaderLocation(shader, "horizon")
+        GetShaderLocation(shader, "pitch")
     };
 }
 
@@ -79,11 +79,11 @@ void updateUniforms(Shader shader,ShaderLocations shaderLocations, Player player
     float playerPos[2] = {(float)player.position.x, (float)player.position.y};
     float playerDir[2] = {(float)player.direction.x, (float)player.direction.y};
     float camPlane[2]  = {(float)player.cameraPlane.x, (float)player.cameraPlane.y};
-    float horizon = player.horizon;
+    float pitch = player.pitch;
     SetShaderValue(shader, shaderLocations.playerPosition, playerPos, SHADER_UNIFORM_VEC2);
     SetShaderValue(shader, shaderLocations.playerDirection, playerDir, SHADER_UNIFORM_VEC2);
     SetShaderValue(shader, shaderLocations.cameraPlane, camPlane, SHADER_UNIFORM_VEC2);
-    SetShaderValue(shader, shaderLocations.horizon, &horizon, SHADER_UNIFORM_FLOAT);
+    SetShaderValue(shader, shaderLocations.pitch, &pitch, SHADER_UNIFORM_FLOAT);
 }
 
 int main(){

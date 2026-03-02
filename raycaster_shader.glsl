@@ -7,7 +7,7 @@ uniform vec2 playerDirection;
 uniform vec2 playerPosition;
 uniform vec2 cameraPlane;
 
-uniform float horizon;
+uniform float pitch;
 
 uniform sampler2D brickTexture;
 uniform sampler2D dirtTexture;
@@ -109,6 +109,7 @@ HitResult performDDA(Ray ray){
 }
 
 void main() {
+    float horizon = resolution.y/2 + pitch;
     float playerHeight = 0.5;
     float cameraX = (-0.5 + gl_FragCoord.x/resolution.x);
     Ray ray;
