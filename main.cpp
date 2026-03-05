@@ -1,4 +1,5 @@
 #include <string>
+#include <vector>
 #include <raylib.h>
 #include "Vector2D.h"
 #include "rlgl.h"
@@ -8,7 +9,25 @@ using namespace raycaster;
  int screenWidth = 800;
  int screenHeight = 450;
 
+struct Sprite
+{
+    Vector2D position;
+    float width;
+    float height;
+    float atlasIndex;
+};
 
+struct SpriteUniforms
+{
+    int countLoc;
+    int positionsLoc;
+    int atlasIndicesLoc;
+    int atlasTextureLoc;
+};
+
+std::vector<Sprite> sprites = {
+    { {.5f, 1.5f}, 1.0f, 2.0f, 0 },  // position, width, height, atlas index
+};
 
 constexpr short moveSpeed = 2; //squares per second
 constexpr float turnSpeed = 0.005; //radians per mouse delta
@@ -39,7 +58,8 @@ static TextureSlot textures[] = {
   {3, {}, 0, "../Assets/dark_oak_log.png",  "dark_oak_logTexture"},
   {4, {}, 0, "../Assets/spruce_planks.png", "spruce_planksTexture"},
   {5, {}, 0, "../Assets/stone.png",         "stoneTexture"},
-  {6, {}, 0, "../Assets/grass.png",         "grassTexture"}
+  {6, {}, 0, "../Assets/grass.png",         "grassTexture"},
+    {7,{}, 0, "../Assets/spriteAtlas.png", "spriteAtlas"}
 };
 
 struct ShaderLocations
@@ -48,6 +68,10 @@ struct ShaderLocations
     int playerDirection;
     int cameraPlane;
     int pixelOffset;
+    int verticalFactor;
+    int spriteAtlasIndices;
+    int spriteCount;
+    int spritePositions;
 };
 
 ShaderLocations getShaderLocations(Shader shader) {
@@ -55,7 +79,11 @@ ShaderLocations getShaderLocations(Shader shader) {
         GetShaderLocation(shader, "playerPosition"),
         GetShaderLocation(shader, "playerDirection"),
         GetShaderLocation(shader, "cameraPlane"),
-        GetShaderLocation(shader, "pixelOffset")
+        GetShaderLocation(shader, "pixelOffset"),
+        GetShaderLocation(shader, "verticalFactor"),
+        GetShaderLocation(shader, "spriteAtlasIndices"),
+        GetShaderLocation(shader, "spriteCount"),
+        GetShaderLocation(shader, "spritePositions")
     };
 }
 
@@ -72,18 +100,44 @@ void loadTextures(Shader shader)
     crosshair = LoadTexture("../Assets/crosshair.png");
 }
 
+void loadSprites(Shader shader)
+{
+    int spriteAtlasWidth = 494;
+    int spriteAtlasHeight = 505;
 
+    int atlasTileWidth = 494;
+    int atlasTileHeight = 505;
+
+    float tileW = (float)atlasTileWidth / spriteAtlasWidth;
+    float tileH = (float)atlasTileHeight / spriteAtlasHeight;
+
+    SetShaderValue(shader, GetShaderLocation(shader, "spriteTileWidth"), &tileW, SHADER_UNIFORM_FLOAT);
+    SetShaderValue(shader, GetShaderLocation(shader, "spriteTileHeight"), &tileH, SHADER_UNIFORM_FLOAT);
+}
 
 void updateUniforms(Shader shader,ShaderLocations shaderLocations, Player player, float verticalFactor)
 {
     float playerPos[2] = {(float)player.position.x, (float)player.position.y};
     float playerDir[2] = {(float)player.direction.x, (float)player.direction.y};
     float camPlane[2]  = {(float)player.cameraPlane.x, (float)player.cameraPlane.y};
-    float pixelOffset = verticalFactor * tan(player.pitch);   // positive pitch → look up → horizon moves down
+    float pixelOffset = verticalFactor * tan(player.pitch);
     SetShaderValue(shader, shaderLocations.pixelOffset, &pixelOffset, SHADER_UNIFORM_FLOAT);
     SetShaderValue(shader, shaderLocations.playerPosition, playerPos, SHADER_UNIFORM_VEC2);
     SetShaderValue(shader, shaderLocations.playerDirection, playerDir, SHADER_UNIFORM_VEC2);
     SetShaderValue(shader, shaderLocations.cameraPlane, camPlane, SHADER_UNIFORM_VEC2);
+    SetShaderValue(shader, shaderLocations.verticalFactor, &verticalFactor, SHADER_UNIFORM_FLOAT);
+}
+
+float calculateVerticalFactor(Player player)
+{
+    // Compute vertical factor (focal length in pixels)
+    float camPlaneLen = sqrt(player.cameraPlane.x * player.cameraPlane.x +
+        player.cameraPlane.y * player.cameraPlane.y);
+    float hfov = 2.0f * atan(camPlaneLen);                    // horizontal FOV
+    float aspect = (float)screenHeight / (float)screenWidth;
+    float vfov = 2.0f * atan(tan(hfov * 0.5f) * aspect);      // vertical FOV
+    float verticalFactor = (screenHeight / 2.0f) / tan(vfov * 0.5f);
+    return verticalFactor;
 }
 
 int main(){
@@ -103,17 +157,11 @@ int main(){
     SetTargetFPS(120);
     DisableCursor();
 
-    auto player = Player({1.5,1.5},{0,-1},{1.32,0});
 
-    // Compute vertical factor (focal length in pixels)
-    float camPlaneLen = sqrt(player.cameraPlane.x * player.cameraPlane.x +
-                             player.cameraPlane.y * player.cameraPlane.y);
-    float hfov = 2.0f * atan(camPlaneLen);                    // horizontal FOV
-    float aspect = (float)screenHeight / (float)screenWidth;
-    float vfov = 2.0f * atan(tan(hfov * 0.5f) * aspect);      // vertical FOV
-    float verticalFactor = (screenHeight / 2.0f) / tan(vfov * 0.5f);
+    float focalDist = 1.32;
+    auto player = Player ({1.5,1.5},{0,-1},{focalDist,0});
 
-    // Get uniform location and set it once (it never changes)
+    float verticalFactor = calculateVerticalFactor(player);
     int verticalFactorLoc = GetShaderLocation(shader, "verticalFactor");
     SetShaderValue(shader, verticalFactorLoc, &verticalFactor, SHADER_UNIFORM_FLOAT);
 
@@ -140,6 +188,20 @@ int main(){
 
         player.handleMovement(moveSpeed, turnSpeed, seconds_elapsed);
 
+        int spriteCount = (int)sprites.size();
+        SetShaderValue(shader, shaderLocations.spriteCount, &spriteCount, SHADER_UNIFORM_INT);
+
+        // Prepare arrays for positions and indices
+        std::vector<Vector2D> positions;
+        std::vector<int> indices;
+        for (const auto& s : sprites) {
+            positions.push_back(s.position);
+            indices.push_back((int)s.atlasIndex);
+        }
+
+        // Upload as arrays
+        SetShaderValueV(shader, shaderLocations.spritePositions, positions.data(), SHADER_UNIFORM_VEC2, spriteCount);
+        SetShaderValueV(shader, shaderLocations.spriteAtlasIndices, indices.data(), SHADER_UNIFORM_INT, spriteCount);
 
         updateUniforms(shader, shaderLocations, player, verticalFactor);
 

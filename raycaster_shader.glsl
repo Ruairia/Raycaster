@@ -1,12 +1,14 @@
 #version 330
 
+#define MAX_SPRITES 64
 
-out vec4 fragColor;
+out vec4 fragColour;
 uniform vec2 resolution;
 uniform vec2 playerDirection;
 uniform vec2 playerPosition;
 uniform vec2 cameraPlane;
 uniform float pixelOffset;
+uniform float verticalFactor;
 
 uniform sampler2D brickTexture;
 uniform sampler2D dirtTexture;
@@ -15,8 +17,17 @@ uniform sampler2D spruce_planksTexture;
 uniform sampler2D dark_oak_logTexture;
 uniform sampler2D grassTexture;
 
-const float FOG_MAX = 0.7;
-const float FOG_DISTANCE = 10.0;
+uniform int spriteCount;
+uniform vec2 spritePositions[MAX_SPRITES];
+uniform int spriteAtlasIndices[MAX_SPRITES];
+uniform sampler2D spriteAtlas;
+
+uniform float spriteTileWidth;
+uniform float spriteTileHeight;
+
+
+const float DARKEN_MAX = 0.8;
+const float DARKEN_DISTANCE = 6.0;
 const float SIDE_DARKENING = 0.2;
 const int VIEW_DIST = 48;
 const float PLAYER_HEIGHT = 0.5;
@@ -80,45 +91,78 @@ vec3 calcGroundColour(float horizon, Ray ray);
 float getBayerValue(ivec2 pos);
 
 void main() {
-    fragColor.a=1.0;
+    fragColour.a=1.0;
 
     float horizon = resolution.y/2 + pixelOffset;
 
     Ray ray = setupRay(playerPosition, playerDirection, cameraPlane);
-
     HitResult hitResult = performDDA(ray);
-
-
 
     float wallHeight = PLAYER_HEIGHT*2*resolution.y/hitResult.perpDistance;
     int wallBottom = int(horizon - wallHeight/2);
     int wallTop = int(horizon + wallHeight/2);
+    float euclDistance = (hitResult.wallType !=0) ? hitResult.perpDistance * length(ray.direction) : 1e10;
 
+    float closestDist = euclDistance;
+    vec4 spriteColour = vec4(0.0);
 
+    for (int i = 0; i<spriteCount; i++){
+        vec2 euclDisplacementToSprite = spritePositions[i] - playerPosition;
+        float euclDistanceToSprite = dot(euclDisplacementToSprite, ray.direction) / dot (ray.direction, ray.direction);
+        if (euclDistanceToSprite <= 0 || euclDistanceToSprite>closestDist) continue;
 
-    vec4 material;
-    if (hitResult.wallType != 0 && gl_FragCoord.y >= wallBottom && gl_FragCoord.y <= wallTop) {
+        vec2 spriteHitPoint = playerPosition + euclDistanceToSprite * ray.direction;
+        float halfWidth = 0.5; //CHANGE THIS
+        if ( abs(spriteHitPoint.x - spritePositions[i].x) > halfWidth ||
+        abs(spriteHitPoint.y - spritePositions[i].y) > halfWidth) continue;
 
-        vec2 texCoords = getWallTextureCoordinates(hitResult, ray, wallHeight, horizon);
+        float worldZ = PLAYER_HEIGHT + (gl_FragCoord.y - horizon) * euclDistanceToSprite / verticalFactor;
+        float spriteHeight = 2.0;
+        if (worldZ < 0.0 || worldZ > spriteHeight) continue;
 
+        vec2 texCoords;
+        texCoords.x = (spriteHitPoint.x - spritePositions[i].x + halfWidth)/ (2*halfWidth);
+        texCoords.y = worldZ/spriteHeight;
 
+        int tileIndex = spriteAtlasIndices[i];
+        vec2 atlasCoords;
+        atlasCoords.x = (tileIndex + texCoords.x) * spriteTileWidth;
+        atlasCoords.y = texCoords.y * spriteTileHeight;
 
-        float darkening = calcDarkening(hitResult.perpDistance * length(ray.direction));
-
-        if (hitResult.ySide) darkening+=SIDE_DARKENING;
-
-        fragColor.rgb = sampleWallTexture(hitResult, texCoords) * (1-darkening);
+        vec4 texColour = texture(spriteAtlas, atlasCoords);
+        if (texColour.a >0) {
+            spriteColour = texColour;
+            closestDist = euclDistanceToSprite;
+        }
     }
-    else if (gl_FragCoord.y>horizon) {
-        fragColor.rgb=calcSkyColour(horizon);
+
+    if (spriteColour.a > 0) {
+        fragColour = spriteColour;
     }
     else {
-        fragColor.rgb = calcGroundColour(horizon, ray);
-    }
+        vec4 material;
+        if (hitResult.wallType != 0 && gl_FragCoord.y >= wallBottom && gl_FragCoord.y <= wallTop) {
 
+            vec2 texCoords = getWallTextureCoordinates(hitResult, ray, wallHeight, horizon);
+
+
+
+            float darkening = calcDarkening(euclDistance);
+
+            if (hitResult.ySide) darkening+=SIDE_DARKENING;
+
+            fragColour.rgb = sampleWallTexture(hitResult, texCoords) * (1-darkening);
+        }
+        else if (gl_FragCoord.y>horizon) {
+            fragColour.rgb=calcSkyColour(horizon);
+        }
+        else {
+            fragColour.rgb = calcGroundColour(horizon, ray);
+        }
+    }
     ivec2 screenPos = ivec2(gl_FragCoord.xy);
-    float threshold = getBayerValue(screenPos);
-    fragColor.rgb += threshold / 64.0; // or subtract, depending on desired effect
+    float dithering = getBayerValue(screenPos);
+    fragColour.rgb += dithering / 64.0;
 }
 
 
@@ -198,7 +242,7 @@ Ray setupRay(vec2 playerPosition, vec2 playerDirection, vec2 cameraPlane){
 }
 
 float calcDarkening(float distance){
-    return max(0.0,FOG_MAX - FOG_DISTANCE / (distance*distance));
+    return max(0.0,DARKEN_MAX - DARKEN_DISTANCE / (distance*distance));
 }
 
 vec2 getWallTextureCoordinates(HitResult hitResult, Ray ray, float wallHeight, float horizon){
