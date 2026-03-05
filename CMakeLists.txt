@@ -22,6 +22,7 @@ add_executable(raycaster
         Player.h
         Map.h
         raycaster_shader.glsl
+        main.h
 )
 
 # Link required libraries

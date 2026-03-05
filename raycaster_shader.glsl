@@ -17,13 +17,6 @@ uniform sampler2D spruce_planksTexture;
 uniform sampler2D dark_oak_logTexture;
 uniform sampler2D grassTexture;
 
-uniform int spriteCount;
-uniform vec2 spritePositions[MAX_SPRITES];
-uniform int spriteAtlasIndices[MAX_SPRITES];
-uniform sampler2D spriteAtlas;
-
-uniform float spriteTileWidth;
-uniform float spriteTileHeight;
 
 
 const float DARKEN_MAX = 0.8;
@@ -104,42 +97,8 @@ void main() {
     float euclDistance = (hitResult.wallType !=0) ? hitResult.perpDistance * length(ray.direction) : 1e10;
 
     float closestDist = euclDistance;
-    vec4 spriteColour = vec4(0.0);
 
-    for (int i = 0; i<spriteCount; i++){
-        vec2 euclDisplacementToSprite = spritePositions[i] - playerPosition;
-        float euclDistanceToSprite = dot(euclDisplacementToSprite, ray.direction) / dot (ray.direction, ray.direction);
-        if (euclDistanceToSprite <= 0 || euclDistanceToSprite>closestDist) continue;
-
-        vec2 spriteHitPoint = playerPosition + euclDistanceToSprite * ray.direction;
-        float halfWidth = 0.5; //CHANGE THIS
-        if ( abs(spriteHitPoint.x - spritePositions[i].x) > halfWidth ||
-        abs(spriteHitPoint.y - spritePositions[i].y) > halfWidth) continue;
-
-        float worldZ = PLAYER_HEIGHT + (gl_FragCoord.y - horizon) * euclDistanceToSprite / verticalFactor;
-        float spriteHeight = 2.0;
-        if (worldZ < 0.0 || worldZ > spriteHeight) continue;
-
-        vec2 texCoords;
-        texCoords.x = (spriteHitPoint.x - spritePositions[i].x + halfWidth)/ (2*halfWidth);
-        texCoords.y = worldZ/spriteHeight;
-
-        int tileIndex = spriteAtlasIndices[i];
-        vec2 atlasCoords;
-        atlasCoords.x = (tileIndex + texCoords.x) * spriteTileWidth;
-        atlasCoords.y = texCoords.y * spriteTileHeight;
-
-        vec4 texColour = texture(spriteAtlas, atlasCoords);
-        if (texColour.a >0) {
-            spriteColour = texColour;
-            closestDist = euclDistanceToSprite;
-        }
-    }
-
-    if (spriteColour.a > 0) {
-        fragColour = spriteColour;
-    }
-    else {
+    {
         vec4 material;
         if (hitResult.wallType != 0 && gl_FragCoord.y >= wallBottom && gl_FragCoord.y <= wallTop) {
 
