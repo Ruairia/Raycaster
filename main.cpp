@@ -20,20 +20,15 @@ int main(){
     screenHeight = GetMonitorHeight(0);
     SetWindowSize(screenWidth, screenHeight);
     ToggleFullscreen();
-
-    Shader shader = LoadShader(nullptr, "raycaster_shader.glsl");
-
-    passResolutionToShader(shader);
-
-    loadTextures(shader);
-
     SetTargetFPS(120);
     DisableCursor();
 
+    Shader shader = LoadShader(nullptr, "raycaster_shader.glsl");
+    passResolutionToShader(shader);
+    loadTextures(shader);
 
     float focalDist = 1.32;
     auto player = Player ({1.5,1.5},{0,-1},{focalDist,0});
-
     float verticalFactor = calculateVerticalFactor(player);
     int verticalFactorLoc = GetShaderLocation(shader, "verticalFactor");
     SetShaderValue(shader, verticalFactorLoc, &verticalFactor, SHADER_UNIFORM_FLOAT);
@@ -44,13 +39,11 @@ int main(){
     double currentTime {0};
     double seconds_elapsed {0};
 
-
     for (TextureSlot texture_slot : textures)
     {
         bindTextureSlot(shader, texture_slot.texture.id, texture_slot.texLoc, texture_slot.slot);
     }
-
-
+    setupSpriteData(shader);
 
     while (!WindowShouldClose()) //Game loop
     {
@@ -61,8 +54,6 @@ int main(){
         player.handleMovement(moveSpeed, turnSpeed, seconds_elapsed);
 
         updateUniforms(shader, shaderLocations, player, verticalFactor);
-
-
 
         BeginDrawing();
         BeginShaderMode(shader);
@@ -145,9 +136,24 @@ ShaderLocations getShaderLocations(Shader shader) {
         GetShaderLocation(shader, "playerDirection"),
         GetShaderLocation(shader, "cameraPlane"),
         GetShaderLocation(shader, "pixelOffset"),
-        GetShaderLocation(shader, "verticalFactor"),
-        GetShaderLocation(shader, "spriteAtlasIndices"),
-        GetShaderLocation(shader, "spriteCount"),
-        GetShaderLocation(shader, "spritePositions")
+        GetShaderLocation(shader, "verticalFactor")
     };
+}
+
+void setupSpriteData(Shader shader) {
+    int numberOfSprites = (int)sprites.size();
+    std::vector<float> data(numberOfSprites * 4);
+    for (int i = 0; i < numberOfSprites; i++) {
+        data[i*4 + 0] = (float)sprites[i].pos.x;
+        data[i*4 + 1] = (float)sprites[i].pos.y;
+        data[i*4 + 2] = sprites[i].size;
+        data[i*4 + 3] = 0.0f;   // placeholder
+    }
+
+    int loc = GetShaderLocation(shader, "spriteData");
+    if (loc != -1)
+        SetShaderValueV(shader, loc, data.data(), SHADER_UNIFORM_VEC4, numberOfSprites);
+
+    loc = GetShaderLocation(shader, "numberOfSprites");
+    SetShaderValue(shader, loc, &numberOfSprites, SHADER_UNIFORM_INT);
 }

@@ -1,6 +1,8 @@
 #version 330
 
 #define MAX_SPRITES 64
+uniform int numberOfSprites;
+uniform vec4 spriteData[MAX_SPRITES];   // x, y, size, unused
 
 out vec4 fragColour;
 uniform vec2 resolution;
@@ -16,6 +18,7 @@ uniform sampler2D stoneTexture;
 uniform sampler2D spruce_planksTexture;
 uniform sampler2D dark_oak_logTexture;
 uniform sampler2D grassTexture;
+
 
 
 
@@ -119,6 +122,47 @@ void main() {
             fragColour.rgb = calcGroundColour(horizon, ray);
         }
     }
+
+    for (int i = 0; i < numberOfSprites; i++) {
+        vec4 s = spriteData[i];
+        vec2 spritePosition = s.xy;
+        float spriteSize = s.z;
+
+
+        vec2 displacementToSprite = spritePosition - playerPosition;
+
+        float cameraPlaneDeterminant = (cameraPlane.x * playerDirection.y - playerDirection.x * cameraPlane.y);
+        float transformX = 2* (playerDirection.y * displacementToSprite.x - playerDirection.x * displacementToSprite.y) / (cameraPlaneDeterminant);
+        float transformY = (-cameraPlane.y * displacementToSprite.x + cameraPlane.x * displacementToSprite.y) / cameraPlaneDeterminant;
+
+        if (transformY <= 0.1) continue;   // behind camera
+
+        // Screen X position and size (in pixels)
+        float spriteScreenX = (resolution.x / 2.0) * (1.0 + transformX / transformY);
+        float spriteHeight = spriteSize * verticalFactor / transformY;   // world size → screen height
+        float halfHeight = spriteHeight * 0.5;
+        float left = spriteScreenX - halfHeight;   // for square sprite, width = height
+        float right = spriteScreenX + halfHeight;
+
+        if (gl_FragCoord.x < left || gl_FragCoord.x > right) continue;
+
+        // Y bounds (sprite stands on floor, bottom = 0, top = sSize)
+        float horizon = resolution.y / 2.0 + pixelOffset;
+        float playerHeight = 0.5;   // same as PLAYER_HEIGHT in shader
+        float screenBottom = horizon + (playerHeight - 0.0) * verticalFactor / transformY;
+        float screenTop    = horizon + (playerHeight - spriteSize) * verticalFactor / transformY;
+
+        float yStart = min(screenTop, screenBottom);
+        float yEnd = max(screenTop, screenBottom);
+
+        if (gl_FragCoord.y < yStart || gl_FragCoord.y > yEnd) continue;
+
+        // Pixel is inside the sprite – draw a red rectangle
+        fragColour.rgb = vec3(1.0, 0.0, 0.0) * (1-calcDarkening(length(displacementToSprite)));
+        break;   // only one sprite, we can stop after first hit
+    }
+
+
     ivec2 screenPos = ivec2(gl_FragCoord.xy);
     float dithering = getBayerValue(screenPos);
     fragColour.rgb += dithering / 64.0;
