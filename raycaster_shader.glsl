@@ -1,6 +1,7 @@
 #version 330
 
 #define MAX_SPRITES 64
+#define SPRITE_DATA_LENGTH 4
 uniform int numberOfSprites;
 uniform vec4 spriteData[MAX_SPRITES];   // x, y, size, unused
 
@@ -123,10 +124,13 @@ void main() {
         }
     }
 
-    for (int i = 0; i < numberOfSprites; i++) {
-        vec4 s = spriteData[i];
-        vec2 spritePosition = s.xy;
-        float spriteSize = s.z;
+    for (int spriteIndex = 0; spriteIndex < numberOfSprites; spriteIndex++) {
+        float thisSpriteData[SPRITE_DATA_LENGTH];
+        for (int spriteDataIndex = 0; spriteDataIndex < SPRITE_DATA_LENGTH; spriteDataIndex++){
+            thisSpriteData[spriteDataIndex] = spriteData[0][spriteDataIndex];
+        }
+        vec2 spritePosition = vec2(thisSpriteData[0], thisSpriteData[1]);
+        float spriteSize = thisSpriteData[2];
 
 
         vec2 displacementToSprite = spritePosition - playerPosition;
