@@ -99,7 +99,7 @@ void main() {
     int wallTop = int(horizon + wallHeight/2);
     float euclDistance = (hitResult.wallType !=0) ? hitResult.perpDistance * length(ray.direction) : 1e10;
 
-    float closestDist = euclDistance;
+    float closestDist = hitResult.perpDistance;
 
     {
         vec4 material;
@@ -132,33 +132,29 @@ void main() {
         vec2 displacementToSprite = spritePosition - playerPosition;
 
         float cameraPlaneDeterminant = (cameraPlane.x * playerDirection.y - playerDirection.x * cameraPlane.y);
-        float transformX = 2* (playerDirection.y * displacementToSprite.x - playerDirection.x * displacementToSprite.y) / (cameraPlaneDeterminant);
-        float transformY = (-cameraPlane.y * displacementToSprite.x + cameraPlane.x * displacementToSprite.y) / cameraPlaneDeterminant;
+        float cameraSpaceLateral = 2* (playerDirection.y * displacementToSprite.x - playerDirection.x * displacementToSprite.y) / (cameraPlaneDeterminant);
+        float cameraSpaceDepth = (-cameraPlane.y * displacementToSprite.x + cameraPlane.x * displacementToSprite.y) / cameraPlaneDeterminant;
 
-        if (transformY <= 0.1) continue;   // behind camera
+        if (cameraSpaceDepth <= 0.1) continue;   // behind camera
 
         // Screen X position and size (in pixels)
-        float spriteScreenX = (resolution.x / 2.0) * (1.0 + transformX / transformY);
-        float spriteHeight = spriteSize * verticalFactor / transformY;   // world size → screen height
-        float halfHeight = spriteHeight * 0.5;
-        float left = spriteScreenX - halfHeight;   // for square sprite, width = height
-        float right = spriteScreenX + halfHeight;
+        float spriteScreenX = (resolution.x / 2.0) * (1.0 + cameraSpaceLateral / cameraSpaceDepth);
+        float spriteHeight = spriteSize * verticalFactor / cameraSpaceDepth;
+        float left = spriteScreenX - 0.5*spriteHeight;   // for square sprite, width = height
+        float right = spriteScreenX + 0.5*spriteHeight;
 
         if (gl_FragCoord.x < left || gl_FragCoord.x > right) continue;
 
-        // Y bounds (sprite stands on floor, bottom = 0, top = sSize)
-        float horizon = resolution.y / 2.0 + pixelOffset;
-        float playerHeight = 0.5;   // same as PLAYER_HEIGHT in shader
-        float screenBottom = horizon + (playerHeight - 0.0) * verticalFactor / transformY;
-        float screenTop    = horizon + (playerHeight - spriteSize) * verticalFactor / transformY;
+        float screenBottom = horizon + (PLAYER_HEIGHT - 0.0) * verticalFactor / cameraSpaceDepth;
+        float screenTop    = horizon + (PLAYER_HEIGHT - spriteSize) * verticalFactor / cameraSpaceDepth;
 
         float yStart = min(screenTop, screenBottom);
         float yEnd = max(screenTop, screenBottom);
 
         if (gl_FragCoord.y < yStart || gl_FragCoord.y > yEnd) continue;
 
-        // Pixel is inside the sprite – draw a red rectangle
-        fragColour.rgb = vec3(1.0, 0.0, 0.0) * (1-calcDarkening(length(displacementToSprite)));
+
+        if ( cameraSpaceDepth < closestDist) fragColour.rgb = vec3(1.0, 0.0, 0.0) * (1-calcDarkening(length(displacementToSprite)));
         break;   // only one sprite, we can stop after first hit
     }
 
