@@ -30,7 +30,7 @@ const float DARKEN_MAX = 0.8;
 const float DARKEN_DISTANCE = 6.0;
 const float SIDE_DARKENING = 0.2;
 const int VIEW_DIST = 48;
-const float PLAYER_HEIGHT = 0.55;
+const float PLAYER_HEIGHT = 0.6;
 
 const int MAP_W = 24;
 const int MAP_H = 24;
@@ -87,9 +87,9 @@ float calcDarkening(float distance);
 vec2 getWallTextureCoordinates(HitResult hitResult, Ray ray, float wallBottom, float wallTop, float horizon);
 vec3 sampleWallTexture(HitResult hitResult, vec2 texCoords);
 vec3 calcSkyColour(float horizon);
-vec3 calcGroundColour(float horizon, Ray ray);
+vec3 getGroundColour(float horizon, Ray ray);
 float getBayerValue(ivec2 pos);
-
+vec4 drawSprites(vec4 colourBefore, float horizon, float closestDist);
 void main() {
     fragColour.a=1.0;
 
@@ -118,11 +118,36 @@ void main() {
             closestDist=1e10;
         }
         else {
-            fragColour.rgb = calcGroundColour(horizon, ray);
+            fragColour.rgb = getGroundColour(horizon, ray);
             closestDist=1e10;
         }
     }
 
+    fragColour = drawSprites(fragColour, horizon, closestDist);
+
+
+    ivec2 screenPos = ivec2(gl_FragCoord.xy);
+    float dithering = getBayerValue(screenPos);
+    fragColour.rgb += dithering / 64.0;
+    //Done
+}
+
+
+
+int getMap(int x, int y) {
+    if (x < 0 || x >= MAP_W || y < 0 || y >= MAP_H) return 1;
+    return map[(y * MAP_W) + x];
+}
+
+float bayer4[16] = float[](
+0.0/16.0,  8.0/16.0,  2.0/16.0, 10.0/16.0,
+12.0/16.0,  4.0/16.0, 14.0/16.0,  6.0/16.0,
+3.0/16.0, 11.0/16.0,  1.0/16.0,  9.0/16.0,
+15.0/16.0,  7.0/16.0, 13.0/16.0,  5.0/16.0
+);
+
+vec4 drawSprites(vec4 colourBefore, float horizon, float closestDist){
+    vec4 outputColour = colourBefore;
     for (int spriteIndex = 0; spriteIndex < numberOfSprites; spriteIndex++) {
         float thisSpriteData[SPRITE_DATA_LENGTH];
         for (int spriteDataIndex = 0; spriteDataIndex < SPRITE_DATA_LENGTH; spriteDataIndex++){
@@ -133,7 +158,7 @@ void main() {
         float spriteHeight = thisSpriteData[3];
         int atlasIndex = int(thisSpriteData[4]);
 
-        int atlasColumn = (atlasIndex % spriteAtlasRows);
+        int atlasColumn = (atlasIndex % spriteAtlasColumns);
         int atlasRow = int(floor(atlasIndex/spriteAtlasRows));
 
         vec2 displacementToSprite = spritePosition - playerPosition;
@@ -171,33 +196,13 @@ void main() {
 
             vec4 texColor = texture(spriteAtlas, vec2(texX, texY));
             if (texColor.a > 0.1) {
-                fragColour.rgb = texColor.rgb * (1.0 - calcDarkening(length(displacementToSprite)));
+                outputColour.rgb = texColor.rgb * (1.0 - calcDarkening(length(displacementToSprite)));
             }
             break;
         }
-        break;
     }
-
-
-    ivec2 screenPos = ivec2(gl_FragCoord.xy);
-    float dithering = getBayerValue(screenPos);
-    fragColour.rgb += dithering / 64.0;
-    //Done
+    return outputColour;
 }
-
-
-
-int getMap(int x, int y) {
-    if (x < 0 || x >= MAP_W || y < 0 || y >= MAP_H) return 1;
-    return map[(y * MAP_W) + x];
-}
-
-float bayer4[16] = float[](
-0.0/16.0,  8.0/16.0,  2.0/16.0, 10.0/16.0,
-12.0/16.0,  4.0/16.0, 14.0/16.0,  6.0/16.0,
-3.0/16.0, 11.0/16.0,  1.0/16.0,  9.0/16.0,
-15.0/16.0,  7.0/16.0, 13.0/16.0,  5.0/16.0
-);
 
 float getBayerValue(ivec2 pos) {
     int idx = (pos.x & 3) + (pos.y & 3) * 4;
@@ -285,7 +290,7 @@ vec2 getWallTextureCoordinates(HitResult hitResult, Ray ray, float wallBottom, f
 
     textureY = (gl_FragCoord.y-wallBottom)/(wallTop-wallBottom);
 
-    return 2*vec2(textureX,textureY);
+    return 3*vec2(textureX,textureY);
 }
 
 vec3 sampleWallTexture(HitResult hitResult, vec2 texCoords){
@@ -306,11 +311,11 @@ vec3 calcSkyColour(float horizon){
     return vec3(0.1, 0.3, 0.8)-vec3(0.01*factor, 0.04*factor, 0.01*factor);
 }
 
-vec3 calcGroundColour(float horizon, Ray ray){
+vec3 getGroundColour(float horizon, Ray ray){
     float distanceFromHorizon = horizon - gl_FragCoord.y;
     float rowDist = (PLAYER_HEIGHT * focalLength) / distanceFromHorizon;
     vec2 worldPos = playerPosition + (rowDist * ray.direction);
-    vec2 texCoord = 2*fract(worldPos);
+    vec2 texCoord = 3*fract(worldPos);
     return texture(grassTexture, texCoord).rgb*(1-calcDarkening(rowDist * length(ray.direction)));
 }
 
