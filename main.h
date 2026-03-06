@@ -29,12 +29,13 @@ struct ShaderLocations
 
 struct Sprite {
     raycaster::Vector2D pos;   // world position (x, y)
-    float size;                // world height (e.g., 1.0)
+    float width;
+    float height;// world height (e.g., 1.0)
     // color will be hardcoded in shader for now
 };
 
 static std::vector<Sprite> sprites = {
-    {{1.5, 3.5}, 1.0f}      // a single sprite
+    {{1.5, 3.5}, 1.0f, 2.0f}      // a single sprite
 };
 
 static TextureSlot textures[] = {

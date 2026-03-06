@@ -27,9 +27,11 @@ int main(){
     passResolutionToShader(shader);
     loadTextures(shader);
 
-    float focalDist = 1.32;
-    auto player = Player ({1.5,1.5},{0,-1},{focalDist,0});
+    float fovInDegrees = 66;
+    float cameraPlaneLength = 2 * tan(fovInDegrees * 0.5f * PI / 180);
+    auto player = Player ({1.5,1.5},{0,-1},{cameraPlaneLength,0});
     float verticalFactor = calculateVerticalFactor(player);
+    std::cout <<  "vertical factor: " <<verticalFactor;
     int verticalFactorLoc = GetShaderLocation(shader, "verticalFactor");
     SetShaderValue(shader, verticalFactorLoc, &verticalFactor, SHADER_UNIFORM_FLOAT);
 
@@ -146,8 +148,8 @@ void setupSpriteData(Shader shader) {
     for (int i = 0; i < numberOfSprites; i++) {
         data[i*4 + 0] = (float)sprites[i].pos.x;
         data[i*4 + 1] = (float)sprites[i].pos.y;
-        data[i*4 + 2] = sprites[i].size;
-        data[i*4 + 3] = 0.0f;   // placeholder
+        data[i*4 + 2] = sprites[i].width;
+        data[i*4 + 3] = sprites[i].height;
     }
 
     int loc = GetShaderLocation(shader, "spriteData");
