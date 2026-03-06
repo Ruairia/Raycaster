@@ -35,7 +35,7 @@ struct Sprite {
 };
 
 static std::vector<Sprite> sprites = {
-    {{1.5, 3.5}, 1.0f, 2.0f, 0}      // a single sprite
+    {{1.5, 3.5}, 1, 1.0f, 0}
 };
 
 static TextureSlot textures[] = {
@@ -45,12 +45,13 @@ static TextureSlot textures[] = {
   {4, {}, 0, "../Assets/spruce_planks.png", "spruce_planksTexture"},
   {5, {}, 0, "../Assets/stone.png",         "stoneTexture"},
   {6, {}, 0, "../Assets/grass.png",         "grassTexture"},
+    {7, {}, 0, "../Assets/spriteAtlas.png", "spriteAtlas"}
 };
 
 static Texture2D crosshair;
 
 int main();
-float calculateVerticalFactor(raycaster::Player player);
+float calculateFocalLength(raycaster::Player player);
 void updateUniforms(Shader shader, ShaderLocations shaderLocations, raycaster::Player player, float verticalFactor);
 void passResolutionToShader(Shader shader);
 void loadTextures(Shader shader);

@@ -3,7 +3,10 @@
 #define MAX_SPRITES 64
 #define SPRITE_DATA_LENGTH 5
 uniform int numberOfSprites;
-uniform float spriteData[MAX_SPRITES*SPRITE_DATA_LENGTH];   // x, y, width, height
+uniform float spriteData[MAX_SPRITES*SPRITE_DATA_LENGTH];   // x, y, width, height, atlasIndex
+uniform sampler2D spriteAtlas;
+const int spriteAtlasColumns = 1;
+const int spriteAtlasRows = 1;
 
 out vec4 fragColour;
 uniform vec2 resolution;
@@ -11,7 +14,7 @@ uniform vec2 playerDirection;
 uniform vec2 playerPosition;
 uniform vec2 cameraPlane;
 uniform float pixelOffset;
-uniform float verticalFactor;
+uniform float focalLength;
 
 uniform sampler2D brickTexture;
 uniform sampler2D dirtTexture;
@@ -59,9 +62,9 @@ const int map[576] = int[](
 );
 
 
-const int WALL_STONE        = 1;
-const int WALL_BRICK        = 2;
-const int WALL_DIRT         = 3;
+const int WALL_STONE = 1;
+const int WALL_BRICK = 2;
+const int WALL_DIRT = 3;
 const int WALL_DARK_OAK_LOG = 4;
 
 struct Ray {
@@ -95,25 +98,19 @@ void main() {
     Ray ray = setupRay(playerPosition, playerDirection, cameraPlane);
     HitResult hitResult = performDDA(ray);
 
-    float wallHeight = verticalFactor/hitResult.perpDistance;
+    float wallHeight = focalLength/hitResult.perpDistance;
     int wallBottom = int(horizon - wallHeight*(PLAYER_HEIGHT));
     int wallTop = int(horizon + 2*wallHeight* (1-PLAYER_HEIGHT));
-    float euclDistance = (hitResult.wallType !=0) ? hitResult.perpDistance * length(ray.direction) : 1e10;
 
+    float euclDistance = (hitResult.wallType !=0) ? hitResult.perpDistance * length(ray.direction) : 1e10;
     float closestDist = hitResult.perpDistance;
 
     {
         vec4 material;
         if (hitResult.wallType != 0 && gl_FragCoord.y >= wallBottom && gl_FragCoord.y <= wallTop) {
-
             vec2 texCoords = getWallTextureCoordinates(hitResult, ray, wallBottom, wallTop, horizon);
-
-
-
             float darkening = calcDarkening(euclDistance);
-
             if (hitResult.ySide) darkening+=SIDE_DARKENING;
-
             fragColour.rgb = sampleWallTexture(hitResult, texCoords) * (1-darkening);
         }
         else if (gl_FragCoord.y>horizon) {
@@ -134,19 +131,22 @@ void main() {
         vec2 spritePosition = vec2(thisSpriteData[0], thisSpriteData[1]);
         float spriteWidth = thisSpriteData[2];
         float spriteHeight = thisSpriteData[3];
+        int atlasIndex = int(thisSpriteData[4]);
 
+        int atlasColumn = (atlasIndex % spriteAtlasRows);
+        int atlasRow = int(floor(atlasIndex/spriteAtlasRows));
 
         vec2 displacementToSprite = spritePosition - playerPosition;
 
         float cameraPlaneDeterminant = (cameraPlane.x * playerDirection.y - playerDirection.x * cameraPlane.y);
         float cameraSpaceLateral = 2* (playerDirection.y * displacementToSprite.x - playerDirection.x * displacementToSprite.y) / (cameraPlaneDeterminant);
-        float cameraSpaceDepth = (-cameraPlane.y * displacementToSprite.x + cameraPlane.x * displacementToSprite.y) / cameraPlaneDeterminant;
+        float perpDistanceToSprite = (-cameraPlane.y * displacementToSprite.x + cameraPlane.x * displacementToSprite.y) / cameraPlaneDeterminant;
 
-        if (cameraSpaceDepth <= 0.1) continue;   // behind camera
+        if (perpDistanceToSprite <= 0.1) continue;   // behind camera
 
         // Screen X position and size (in pixels)
-        float spriteScreenX = (resolution.x / 2.0) * (1.0 + cameraSpaceLateral / cameraSpaceDepth);
-        float spriteScaling = verticalFactor / cameraSpaceDepth;
+        float spriteScreenX = (resolution.x / 2.0) * (1.0 + cameraSpaceLateral / perpDistanceToSprite);
+        float spriteScaling = focalLength / perpDistanceToSprite;
         float spriteHeightOnScreen = spriteHeight * spriteScaling;
         float spriteWidthOnScreen = spriteWidth * spriteScaling;
         float left = spriteScreenX - 0.5*spriteWidthOnScreen;
@@ -154,15 +154,27 @@ void main() {
 
         if (gl_FragCoord.x < left || gl_FragCoord.x > right) continue;
 
-        float screenBottom = horizon - (PLAYER_HEIGHT) * verticalFactor / cameraSpaceDepth;
-        float screenTop    = horizon + (spriteHeight - PLAYER_HEIGHT) * verticalFactor / cameraSpaceDepth;
+        float screenBottom = horizon - (PLAYER_HEIGHT) * focalLength / perpDistanceToSprite;
+        float screenTop    = horizon + (spriteHeight - PLAYER_HEIGHT) * focalLength / perpDistanceToSprite;
 
         float yStart = screenBottom;
         float yEnd = screenTop;
 
         if (gl_FragCoord.y < yStart || gl_FragCoord.y > yEnd) continue;
 
-        if ( cameraSpaceDepth < closestDist) fragColour.rgb = vec3(1.0, 0.0, 0.0) * (1-calcDarkening(length(displacementToSprite)));
+        if (perpDistanceToSprite < closestDist) {
+            float texX = ((gl_FragCoord.x - left) / (right - left) + atlasColumn )/spriteAtlasColumns;
+            float texY = ((gl_FragCoord.y - yStart) / (yEnd - yStart) + atlasRow) / spriteAtlasRows;
+
+            // Flip Y because image origin is top‑left
+            texY = 1.0 - texY;;
+
+            vec4 texColor = texture(spriteAtlas, vec2(texX, texY));
+            if (texColor.a > 0.1) {
+                fragColour.rgb = texColor.rgb * (1.0 - calcDarkening(length(displacementToSprite)));
+            }
+            break;
+        }
         break;
     }
 
@@ -296,7 +308,7 @@ vec3 calcSkyColour(float horizon){
 
 vec3 calcGroundColour(float horizon, Ray ray){
     float distanceFromHorizon = horizon - gl_FragCoord.y;
-    float rowDist = (PLAYER_HEIGHT * verticalFactor) / distanceFromHorizon;
+    float rowDist = (PLAYER_HEIGHT * focalLength) / distanceFromHorizon;
     vec2 worldPos = playerPosition + (rowDist * ray.direction);
     vec2 texCoord = 2*fract(worldPos);
     return texture(grassTexture, texCoord).rgb*(1-calcDarkening(rowDist * length(ray.direction)));

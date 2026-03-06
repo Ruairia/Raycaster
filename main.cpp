@@ -32,10 +32,9 @@ int main(){
     float fovInDegrees = 66;
     float cameraPlaneLength = 2 * tan(fovInDegrees * 0.5f * PI / 180);
     auto player = Player ({1.5,1.5},{0,-1},{cameraPlaneLength,0});
-    float verticalFactor = calculateVerticalFactor(player);
-    std::cout <<  "vertical factor: " <<verticalFactor;
-    int verticalFactorLoc = GetShaderLocation(shader, "verticalFactor");
-    SetShaderValue(shader, verticalFactorLoc, &verticalFactor, SHADER_UNIFORM_FLOAT);
+    float focalLength = calculateFocalLength(player);
+    int focalLengthLoc = GetShaderLocation(shader, "focalLength");
+    SetShaderValue(shader, focalLengthLoc, &focalLength, SHADER_UNIFORM_FLOAT);
 
     ShaderLocations shaderLocations = getShaderLocations(shader);
 
@@ -57,7 +56,7 @@ int main(){
 
         player.handleMovement(moveSpeed, turnSpeed, seconds_elapsed);
 
-        updateUniforms(shader, shaderLocations, player, verticalFactor);
+        updateUniforms(shader, shaderLocations, player, focalLength);
 
         BeginDrawing();
         BeginShaderMode(shader);
@@ -107,7 +106,7 @@ void updateUniforms(Shader shader,ShaderLocations shaderLocations, Player player
     SetShaderValue(shader, shaderLocations.verticalFactor, &verticalFactor, SHADER_UNIFORM_FLOAT);
 }
 
-float calculateVerticalFactor(Player player)
+float calculateFocalLength(Player player)
 {
     // Compute vertical factor (focal length in pixels)
     float camPlaneLen = sqrt(player.cameraPlane.x * player.cameraPlane.x +
