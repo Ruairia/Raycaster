@@ -7,6 +7,8 @@
 #include "rlgl.h"
 #include "Player.h"
 
+#define SPRITE_DATA_LENGTH 5
+
 using namespace raycaster;
  int screenWidth = 800;
  int screenHeight = 450;
@@ -144,17 +146,17 @@ ShaderLocations getShaderLocations(Shader shader) {
 
 void setupSpriteData(Shader shader) {
     int numberOfSprites = (int)sprites.size();
-    std::vector<float> data(numberOfSprites * 4);
-    for (int i = 0; i < numberOfSprites; i++) {
-        data[i*4 + 0] = (float)sprites[i].pos.x;
-        data[i*4 + 1] = (float)sprites[i].pos.y;
-        data[i*4 + 2] = sprites[i].width;
-        data[i*4 + 3] = sprites[i].height;
+    float data[numberOfSprites * SPRITE_DATA_LENGTH];
+    for (int i = 0; i < numberOfSprites*SPRITE_DATA_LENGTH; i+=SPRITE_DATA_LENGTH) {
+        data[i + 0] = (float)sprites[i].pos.x;
+        data[i + 1] = (float)sprites[i].pos.y;
+        data[i + 2] = sprites[i].width;
+        data[i + 3] = sprites[i].height;
+        data[i + 4] = sprites[i].atlasIndex;
     }
 
     int loc = GetShaderLocation(shader, "spriteData");
-    if (loc != -1)
-        SetShaderValueV(shader, loc, data.data(), SHADER_UNIFORM_VEC4, numberOfSprites);
+    SetShaderValueV(shader, loc, data, SHADER_UNIFORM_FLOAT,numberOfSprites*SPRITE_DATA_LENGTH);
 
     loc = GetShaderLocation(shader, "numberOfSprites");
     SetShaderValue(shader, loc, &numberOfSprites, SHADER_UNIFORM_INT);

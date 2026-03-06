@@ -1,9 +1,9 @@
 #version 330
 
 #define MAX_SPRITES 64
-#define SPRITE_DATA_LENGTH 4
+#define SPRITE_DATA_LENGTH 5
 uniform int numberOfSprites;
-uniform vec4 spriteData[MAX_SPRITES];   // x, y, size, unused
+uniform float spriteData[MAX_SPRITES*SPRITE_DATA_LENGTH];   // x, y, width, height
 
 out vec4 fragColour;
 uniform vec2 resolution;
@@ -129,7 +129,7 @@ void main() {
     for (int spriteIndex = 0; spriteIndex < numberOfSprites; spriteIndex++) {
         float thisSpriteData[SPRITE_DATA_LENGTH];
         for (int spriteDataIndex = 0; spriteDataIndex < SPRITE_DATA_LENGTH; spriteDataIndex++){
-            thisSpriteData[spriteDataIndex] = spriteData[spriteIndex][spriteDataIndex];
+            thisSpriteData[spriteDataIndex] = spriteData[spriteIndex*SPRITE_DATA_LENGTH + spriteDataIndex];
         }
         vec2 spritePosition = vec2(thisSpriteData[0], thisSpriteData[1]);
         float spriteWidth = thisSpriteData[2];
@@ -162,15 +162,15 @@ void main() {
 
         if (gl_FragCoord.y < yStart || gl_FragCoord.y > yEnd) continue;
 
-
         if ( cameraSpaceDepth < closestDist) fragColour.rgb = vec3(1.0, 0.0, 0.0) * (1-calcDarkening(length(displacementToSprite)));
-        break;   // only one sprite, we can stop after first hit
+        break;
     }
 
 
     ivec2 screenPos = ivec2(gl_FragCoord.xy);
     float dithering = getBayerValue(screenPos);
     fragColour.rgb += dithering / 64.0;
+    //Done
 }
 
 
