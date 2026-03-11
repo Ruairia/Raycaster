@@ -198,7 +198,6 @@ vec4 drawSprites(vec4 colourBefore, float horizon, float closestDist){
             if (texColor.a > 0.1) {
                 outputColour.rgb = texColor.rgb * (1.0 - calcDarkening(length(displacementToSprite)));
             }
-            break;
         }
     }
     return outputColour;

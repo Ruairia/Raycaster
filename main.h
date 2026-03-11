@@ -34,8 +34,12 @@ struct Sprite {
     int atlasIndex;
 };
 
-static std::vector<Sprite> sprites = {
-    {{1.5, 3.5}, 1, 1.0f, 0}
+static std::vector<Sprite> allSprites = {
+    {{1.5, 3.5}, 1.0, 1.0f, 0},
+    {{2.5, 4.5}, 1.0, 1.0, 0},
+    {{6.5, 4.5}, 1.0, 1.0, 0},
+    {{5.5, 4.5}, 1.0, 1.0, 0},
+    {{1.5, 1.5}, 1.0, 1.0, 0}
 };
 
 static TextureSlot textures[] = {
@@ -58,6 +62,7 @@ void loadTextures(Shader shader);
 void bindTextureSlot(const Shader shader, const unsigned textureID, const int texLoc, const int slot);
 ShaderLocations getShaderLocations(const Shader shader);
 void setupSpriteData(Shader shader);
+void updateSprites(raycaster::Player player);
 
 
 #endif //RAYCASTER_MAIN_H

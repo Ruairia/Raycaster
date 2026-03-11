@@ -3,6 +3,7 @@
 #include <string>
 #include <vector>
 #include <raylib.h>
+#include <algorithm>
 #include "Vector2D.h"
 #include "rlgl.h"
 #include "Player.h"
@@ -55,6 +56,8 @@ int main(){
         previousTime = currentTime;
 
         player.handleMovement(moveSpeed, turnSpeed, seconds_elapsed);
+        updateSprites(player);
+        setupSpriteData(shader);
 
         updateUniforms(shader, shaderLocations, player, focalLength);
 
@@ -144,14 +147,14 @@ ShaderLocations getShaderLocations(Shader shader) {
 }
 
 void setupSpriteData(Shader shader) {
-    int numberOfSprites = (int)sprites.size();
+    int numberOfSprites = (int)allSprites.size();
     float data[numberOfSprites * SPRITE_DATA_LENGTH];
-    for (int i = 0; i < numberOfSprites*SPRITE_DATA_LENGTH; i+=SPRITE_DATA_LENGTH) {
-        data[i + 0] = (float)sprites[i].pos.x;
-        data[i + 1] = (float)sprites[i].pos.y;
-        data[i + 2] = sprites[i].width;
-        data[i + 3] = sprites[i].height;
-        data[i + 4] = sprites[i].atlasIndex;
+    for (int i = 0; i < numberOfSprites; i++) {
+        data[i*SPRITE_DATA_LENGTH + 0] = (float)allSprites[i].pos.x;
+        data[i*SPRITE_DATA_LENGTH + 1] = (float)allSprites[i].pos.y;
+        data[i*SPRITE_DATA_LENGTH + 2] = allSprites[i].width;
+        data[i*SPRITE_DATA_LENGTH + 3] = allSprites[i].height;
+        data[i*SPRITE_DATA_LENGTH + 4] = allSprites[i].atlasIndex;
     }
 
     int loc = GetShaderLocation(shader, "spriteData");
@@ -159,4 +162,22 @@ void setupSpriteData(Shader shader) {
 
     loc = GetShaderLocation(shader, "numberOfSprites");
     SetShaderValue(shader, loc, &numberOfSprites, SHADER_UNIFORM_INT);
+}
+
+void updateSprites(Player player)
+{
+    for (Sprite& sprite : allSprites)
+    {
+        Vector2D displacementToPlayer = player.position-sprite.pos;
+        displacementToPlayer.normalise();
+        sprite.pos+=displacementToPlayer*0.005f;
+    }
+    std::sort(allSprites.begin(), allSprites.end(),
+        [&](const Sprite& a, const Sprite& b) {
+            float distA = (a.pos.x - player.position.x)*(a.pos.x - player.position.x) +
+                          (a.pos.y - player.position.y)*(a.pos.y - player.position.y);
+            float distB = (b.pos.x - player.position.x)*(b.pos.x - player.position.x) +
+                          (b.pos.y - player.position.y)*(b.pos.y - player.position.y);
+            return distA > distB;   // farthest first
+        });
 }
