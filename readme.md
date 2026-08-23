@@ -4,9 +4,9 @@ A 2.5D raycasting engine written in C++ and GLSL, rebuilt and extended from the 
 
 ---
 
-## Demo
+## What does it look like now?
 
-> WASD to move · Mouse to look
+![Raycaster Demo](/Assets/screenshot.png)
 
 ---
 
